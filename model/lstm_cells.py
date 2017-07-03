@@ -11,7 +11,12 @@ import collections
 
 
 def make_lstm_cell(input_size, state_size, batch_size):
-    """Returns lstm function and zero_state"""
+    """
+    Returns an lstm cell function and the zero state for the lstm.
+    The cell function takes an lstm state and an input tensor as input
+    and returns the next lstm state. An lstm state is a tensor with
+    shape (2, state_size), so that tf.unstack(state) = [c_state, h_state].
+    """
 
     # Concatenate all the parameters into one tensor to batch operations
     Wx_shape = (input_size, 4 * state_size)
@@ -22,8 +27,8 @@ def make_lstm_cell(input_size, state_size, batch_size):
     # Initialize forget biases to 1.0 and all other biases to 0
     # (order is input gate, forget gate, candidate gate, output gate)
     init_b = ([0 for _ in range(state_size)] +
-                        [1 for _ in range(state_size)] +
-                        [0 for _ in range(2 * state_size)])
+              [1 for _ in range(state_size)] +
+              [0 for _ in range(2 * state_size)])
     b_init = tf.constant_initializer(init_b)
 
     # Define the lstm function
@@ -65,6 +70,15 @@ def make_stacked_lstm_cell(input_size,
                            batch_size,
                            num_layers,
                            dropout):
+    """
+    Returns an lstm cell function and the zero state for the lstm.
+    The cell function takes an lstm state and an input tensor as input
+    and returns the next lstm state. An lstm state is a tensor with
+    shape (num_layers, 2, state_size), so that
+      tf.unstack(state) = [layer0_state, layer1_state, ...]
+      tf.unstack(layer_state) = [c_state, h_state]
+    """
+    
     init_cells = [make_lstm_cell(input_size, state_size, batch_size)]
     for _ in xrange(num_layers - 1):
         init_cells.append(make_lstm_cell(state_size, state_size, batch_size))

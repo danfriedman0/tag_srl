@@ -3,6 +3,29 @@ import numpy as np
 import tensorflow as tf
 
 
+def get_word_embeddings(idx_to_word, fn='data/embeddings/sskip.100.vectors'):
+    """
+    Load word embeddings from a file and store them in an embedding matrix
+    indexed by the indices in idx_to_word.
+    """
+    word_to_vec = {}
+    with open(fn, 'r') as f:
+        for line in f:
+            parts = line.strip().split(' ')
+            word = parts[0]
+            vec = np.array(parts[1:], dtype=np.float32)
+            word_to_vec[word] = vec
+    num_words = max(idx_to_word.keys()) + 1
+    embed_size = len(word_to_vec.values()[0])
+    embeddings = np.zeros((num_words, embed_size), dtype=np.float32)
+    for idx, word in idx_to_word.iteritems():
+        if word in word_to_vec:
+            embeddings[idx, :] = word_to_vec[word]
+        elif idx > 0:
+            embeddings[idx, :] = np.random.randn(embed_size)
+    return embeddings
+
+
 def embed_inputs(raw_inputs,
                  vocab_size,
                  embed_size,
