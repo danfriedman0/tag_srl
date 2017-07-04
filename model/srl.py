@@ -8,7 +8,7 @@ import sys
 import numpy as np
 import tensorflow as tf
 
-from model import layers, lstm_cells
+from model import layers, lstm
 from util.data_loader import batch_producer
 
 
@@ -81,14 +81,14 @@ class SRL_Model(object):
 
 
         # BiLSTM
-        lstm_cell, zero_state = lstm_cells.make_stacked_lstm_cell(
+        bilstm, zero_state = lstm.make_stacked_bilstm(
             input_size=input_size,
             state_size=args.state_size,
             batch_size=args.batch_size,
             num_layers=args.num_layers,
             dropout=args.dropout)
 
-        lstm_outputs = layers.bi_lstm(lstm_inputs, lstm_cell, zero_state)
+        lstm_outputs = bilstm(lstm_inputs, zero_state)
         outputs = tf.transpose(lstm_outputs, perm=[1, 0, 2])
 
 
@@ -219,11 +219,12 @@ class SRL_Model(object):
         total_batches = sum(1 for _ in batch_producer(batch_size, vocabs, fn))
 
         for i, (_, batch) in enumerate(batch_producer(batch_size, vocabs, fn)):
-            total_loss += self.run_training_batch(session, batch)
+            loss = self.run_training_batch(session, batch)
+            total_loss += loss
             num_batches += 1
             if i % 10 == 0:
                 avg_loss = total_loss / num_batches
-                msg = '{}/{}\tloss: {}\r'.format(i, total_batches, avg_loss)
+                msg = '{}/{}\tloss: {}\r'.format(i, total_batches, loss)
                 sys.stdout.write(msg)
                 sys.stdout.flush()
 
