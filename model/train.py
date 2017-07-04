@@ -4,6 +4,7 @@ from __future__ import print_function
 from __future__ import division
 
 import argparse
+import os
 import tensorflow as tf
 from timeit import default_timer as timer
 from subprocess import check_output
@@ -62,12 +63,19 @@ class Debug_Args(object):
         self.max_epochs = 2
 
 
-def run_evaluation_script(fn_gold, fn_sys):
+def run_evaluation_script(fn_gold, fn_sys, print_output=False):
     args = ['perl', 'eval/eval09.pl', '-g', fn_gold, '-s', fn_sys, '-q']
-    print('Running the CoNLL evaluation script...')
-    output = check_output(args)
-    print(output)
-    
+    with open(os.devnull, 'w') as devnull:
+        output = check_output(args, stderr=devnull)
+    if print_output:
+        print(output)
+    # Just want to return labeled and unlabeled semantic F1 scores
+    lines = output.split('\n')
+    lf1_line = [line for line in lines if line.startswith('  Labeled F1')][0]
+    labeled_f1 = float(lf1_line.strip().split(' ')[-1])
+    uf1_line = [line for line in lines if line.startswith('  Unlabeled F1')][0]
+    unlabeled_f1 = float(uf1_line.strip().split(' ')[-1])    
+    return labeled_f1, unlabeled_f1
     
 
 def train(args):
@@ -76,23 +84,15 @@ def train(args):
     fn_sys = 'output/predictions_dev.txt'
     
     vocabs = vocab.get_vocabs()
-
+    
     print("Building model...")
     model = SRL_Model(vocabs, args)
-
+    
     with tf.Session() as session:
-        best_loss = float('inf')
+        best_f1 = 0
         bad_streak = 0
 
         session.run(tf.global_variables_initializer())
-
-        print('-' * 78)
-        print('Validating...')
-        valid_loss = model.run_testing_epoch(session, vocabs, fn_valid)
-        print('Validation loss: {}'.format(valid_loss))
-        print('-' * 78)
-        
-        run_evaluation_script(fn_valid, fn_sys)
         
         for i in xrange(args.max_epochs):
             print('-' * 78)
@@ -107,17 +107,21 @@ def train(args):
             print('Validating...')
             valid_loss = model.run_testing_epoch(session, vocabs, fn_valid)
             print('Validation loss: {}'.format(valid_loss))
+
             print('-' * 78)
+            print('Running evaluation script...')
+            labeled_f1, unlabeled_f1 = run_evaluation_script(fn_valid, fn_sys)
+            print('Labeled F1:    {0:.2f}'.format(labeled_f1))
+            print('Unlabeled F1:  {0:.2f}'.format(unlabeled_f1))
 
-
-            if valid_loss < best_loss:
-                best_loss = valid_loss
-            elif valid_loss > best_loss:
+            if labeled_f1 < best_f1:
+                best_f1 = labeled_f1
+            elif best_f1 > labeled_f1:
                 bad_streak += 1
                 if bad_streak >= 2:
-                    print('Validation loss deteriorated for two epochs \
-                    in a row, stopping early.')
+                    print('F1 decreased for 2 epochs in a row, stopping early')
                     break
+            
 
 if __name__ == '__main__':
     args = parser.parse_args()
