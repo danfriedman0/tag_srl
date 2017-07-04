@@ -5,13 +5,14 @@ from __future__ import print_function
 from collections import Counter
 
 class Vocab(object):
-    def __init__(self, fn, zero='<zero>', unk='<unk>'):
+    def __init__(self, fn, zero=None, unk=None):
         """
         fn should be a path to a vocab file in data/vocab
         The Vocab class assigns word indices in the order the words appear
           in the file
         Word indices begin at index 1.
-        Index 0 is reserved for self.zero ('<zero>' by default)
+        If zero is provided, index 0 is reserved for zero.
+        If unk is provided, unk is added to vocab.
         """
         self.zero = zero
         self.unk = unk
@@ -21,9 +22,16 @@ class Vocab(object):
         counts = [line.strip().split(' ') for line in lines]
         self.counts = {w: int(c) for w, c in counts}
 
-        self.idx_to_word = {i: w for i, (w, _) in enumerate(counts, start=1)}
-        self.idx_to_word[0] = self.zero
-        self.idx_to_word[len(self.idx_to_word)] = self.unk
+        if self.zero is not None:
+            self.idx_to_word = {i: w for i, (w, _) in
+                                enumerate(counts, start=1)}
+            self.idx_to_word[0] = self.zero
+        else:
+            self.idx_to_word = {i: w for i, (w, _) in
+                                enumerate(counts, start=0)}
+
+        if self.unk is not None:
+            self.idx_to_word[len(self.idx_to_word)] = self.unk
 
         self.word_to_idx = {w: i for i, w in self.idx_to_word.iteritems()}
 
@@ -32,6 +40,8 @@ class Vocab(object):
 
     def encode(self, word):
         if word not in self.word_to_idx:
+            if self.unk is None:
+                raise KeyError("{} not found".format(word))
             word = self.unk
         return self.word_to_idx[word]
 
@@ -51,6 +61,12 @@ def get_vocabs():
     vocabs = {}
     for vocab_type in vocab_types:
         fn = 'data/vocab/{}.txt'.format(vocab_type)
-        vocabs[vocab_type] = Vocab(fn)
+        if vocab_type == 'labels':
+            zero = None
+            unk = None
+        else:
+            zero = "<zero>"
+            unk = "<unk>"
+        vocabs[vocab_type] = Vocab(fn, zero=zero, unk=unk)
     return vocabs
     
