@@ -149,7 +149,7 @@ def make_stacked_bilstm(input_size,
         for i, cell in enumerate(cells):
             with tf.variable_scope("bilstm_%d" % i) as scope:
                 outputs = bilstm(inputs, cell, init_states[i])
-                inputs = tf.nn.dropout(inputs, keep_prob=dropout)
+                inputs = tf.nn.dropout(outputs, keep_prob=dropout)
         return outputs
 
     zero_state = tf.stack(zero_states)
