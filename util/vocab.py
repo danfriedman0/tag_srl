@@ -51,6 +51,9 @@ class Vocab(object):
     def decode(self, idx):
         return self.idx_to_word[idx]
 
+    def __contains__(self, word):
+        return word in self.word_to_idx
+
     
 def get_vocabs():
     """
