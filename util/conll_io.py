@@ -99,14 +99,10 @@ class CoNLL09_Sent_with_Pred(object):
             self.full_pred = pred_list.full_pred
             self.pred_idx = pred_list.pred_idx
             self.labels = pred_list.arg_seq
-            # if self.pred in pred_to_frame:
-            #     self.frame = pred_to_frame[self.pred]
-            #     for label in self.labels:
-            #         if label != '_' and label not in self.frame:
-            #             print(self.pred, label)
-            # else:
-            #     print(self.pred)
-            #     self.frame = []
+            if self.pred in pred_to_frame:
+                self.frame = pred_to_frame[self.pred]
+            else:
+                self.frame = []
             self.frame = []
         else:
             pred_list = []
@@ -124,23 +120,27 @@ class CoNLL09_Sent_with_Pred(object):
         return len(self.words)
 
 
-    def add_predictions(self, probs, vocab):
+    def add_predictions(self, probs, vocab, restrict_labels=False):
         """
         probabilities is a matrix shaped (seq_length, num_labels)
           containing a probability distribution over labels for each
           word in the sequence
-        add_predictions picks the most probable valid label for each
+        add_predictions picks the most probable label for each
           word and also adds the predictions to the parent sentence
           for writing to file later
+        If restrict_labels is set to True then only labels from the predicate's
+          frame are allowed (note that the predicate frame information is
+          not totally complete or accurate)
         """
         if self.pred_num < 0:
             return
         
-        # # Only allow valid frames
-        # mask = np.zeros(vocab.size, dtype=np.float32)
-        # for label in self.frame:
-        #     mask[vocab.encode(label)] = 1.0
-        # masked_probs = probs * mask
+        # Only allow valid labels
+        if restrict_labels:
+            mask = np.zeros(vocab.size, dtype=np.float32)
+            for label in self.frame:
+                mask[vocab.encode(label)] = 1.0
+                probs *= mask
 
         # Decode predictions
         raw_predictions = np.argmax(probs, axis=1)

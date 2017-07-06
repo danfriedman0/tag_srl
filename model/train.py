@@ -43,7 +43,10 @@ parser.add_argument("--dropout",
                     default=1.0, type=float)
 parser.add_argument("--max_epochs",
                     help="Maximum number of epochs to train for",
-                    default=10, type=int)
+                    default=25, type=int)
+parser.add_argument("--restrict_labels",
+                    help="Only allow labels from a predicate's frame",
+                    action="store_true", default=False)
 parser.add_argument("--debug",
                     help="Use a smaller configuration for debuggin",
                     action="store_true", default=False)

@@ -239,16 +239,18 @@ class SRL_Model(object):
         num_batches = 0
         total_batches = sum(1 for _ in batch_producer(batch_size, vocabs, fn))
 
-        for i, (_, batch) in enumerate(batch_producer(batch_size, vocabs, fn)):
+        for i, (_, batch) in enumerate(
+                batch_producer(batch_size, vocabs, fn, train=True)):
             loss = self.run_training_batch(session, batch)
             total_loss += loss
             num_batches += 1
             if i % 10 == 0:
                 avg_loss = total_loss / num_batches
-                msg = '{}/{}\tloss: {}\r'.format(i, total_batches, loss)
+                msg = '\r{}/{}    loss: {}'.format(i, total_batches, avg_loss)
                 sys.stdout.write(msg)
                 sys.stdout.flush()
-
+        print('\n')
+                
         return total_loss / num_batches
 
 
@@ -260,14 +262,15 @@ class SRL_Model(object):
 
         predicted_sents = []
         for i, (sents, batch) in enumerate(
-                batch_producer(batch_size, vocabs, fn)):
+                batch_producer(batch_size, vocabs, fn, train=False)):
             batch_loss, probabilities = self.run_testing_batch(session, batch)
             total_loss += batch_loss
             num_batches += 1
 
             # Add the predictions to the sentence objects for later evaluation
             for sent, probs in zip(sents, probabilities):
-                sent.add_predictions(probs, vocabs['labels'])
+                sent.add_predictions(probs, vocabs['labels'],
+                                     restrict_labels=self.args.restrict_labels)
                 # (sent.parent is the complete sentence, as opposed to the
                 # predicate-specific sentence)
                 if sent.parent not in predicted_sents:
@@ -275,9 +278,10 @@ class SRL_Model(object):
             
             if i % 10 == 0:
                 avg_loss = total_loss / num_batches
-                msg = '{}/{}\tloss: {}\r'.format(i, total_batches, avg_loss)
+                msg = '\r{}/{}    loss: {}'.format(i, total_batches, avg_loss)
                 sys.stdout.write(msg)
                 sys.stdout.flush()
+        print('\n')
 
         # Write the predictions to a file for evaluation
         fn = 'output/predictions_dev.txt'
