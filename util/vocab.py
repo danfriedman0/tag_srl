@@ -1,11 +1,13 @@
 # vocab.py
 # A class for storing vocabulary information and encoding words as integers
 from __future__ import print_function
+from __future__ import division
 
+import random
 from collections import Counter
 
 class Vocab(object):
-    def __init__(self, fn, zero=None, unk=None):
+    def __init__(self, fn, zero=None, unk=None, alpha=0.25):
         """
         fn should be a path to a vocab file in data/vocab
         The Vocab class assigns word indices in the order the words appear
@@ -13,9 +15,11 @@ class Vocab(object):
         Word indices begin at index 1.
         If zero is provided, index 0 is reserved for zero.
         If unk is provided, unk is added to vocab.
+        alpha is an optional hyperparameter for word dropout.
         """
         self.zero = zero
         self.unk = unk
+        self.alpha = alpha
         
         with open(fn, 'r') as f:
             lines = f.readlines()
@@ -38,15 +42,24 @@ class Vocab(object):
         self.size = len(self.idx_to_word)
 
 
-    def encode(self, word):
+    def encode(self, word, use_dropout=False):
+        """
+        Encodes a word with an integer idx.
+        Optionally applies word dropout
+          (see Marcheggiani et al, 2017, section 3)
+        """
         if word not in self.word_to_idx:
             if self.unk is None:
                 raise KeyError("{} not found".format(word))
             word = self.unk
+        if use_dropout and word != self.unk:
+            drop_prob = self.alpha / (self.counts[word] + self.alpha)
+            if random.random() < drop_prob:
+                word = self.unk
         return self.word_to_idx[word]
 
-    def encode_sequence(self, words):
-        return [self.encode(word) for word in words]
+    def encode_sequence(self, words, use_dropout=False):
+        return [self.encode(word, use_dropout) for word in words]
 
     def decode(self, idx):
         return self.idx_to_word[idx]

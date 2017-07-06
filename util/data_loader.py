@@ -20,11 +20,12 @@ def make_batch_labels_masks(sents, vocab):
     return masks
 
 
-def make_batch_field_sequence(sents, field, seq_length, vocab):
+def make_batch_field_sequence(sents, field, seq_length, vocab,
+                              use_dropout=False):
     data = np.zeros((len(sents), seq_length), dtype=np.float32)
     for i, sent in enumerate(sents):
         words = getattr(sent, field)
-        data[i, :len(words)] = vocab.encode_sequence(words)
+        data[i, :len(words)] = vocab.encode_sequence(words, use_dropout)
     return data
 
 
@@ -38,7 +39,7 @@ def make_batch_field_single(sents, field, vocab=None):
     return data
     
             
-def make_batch(sents, vocabs):
+def make_batch(sents, vocabs, train):
     """
     A batch contains six things:
       words_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
@@ -57,7 +58,8 @@ def make_batch(sents, vocabs):
     """
     seq_length = max(len(sent) for sent in sents)
     words = make_batch_field_sequence(sents, 'words',
-                                      seq_length, vocabs['words'])
+                                      seq_length, vocabs['words'],
+                                      use_dropout=train)
     pos = make_batch_field_sequence(sents, 'pos',
                                     seq_length, vocabs['pos'])
     lemmas = make_batch_field_sequence(sents, 'lemmas',
@@ -70,8 +72,7 @@ def make_batch(sents, vocabs):
     return words, pos, lemmas, preds, preds_idx, labels
 
     
-
-def batch_producer(batch_size, vocabs, fn):
+def batch_producer(batch_size, vocabs, fn, train=True):
     """
     vocabs should be a dictionary of Vocab objects keyed "words", "pos", etc.
     See `make_batch` for details about what's in a batch.
@@ -83,9 +84,9 @@ def batch_producer(batch_size, vocabs, fn):
         for sent in conll09_generator(f):
             sents.append(sent)
             if len(sents) == batch_size:
-                yield sents, make_batch(sents, vocabs)
+                yield sents, make_batch(sents, vocabs, train)
                 sents = []
         # Fill out the last batch if the data doesn't evenly divide
         if len(sents) > 0 and len(sents) < batch_size:
             sents += [sents[0] for _ in xrange(batch_size - len(sents))]
-            yield sents, make_batch(sents, vocabs)
+            yield sents, make_batch(sents, vocabs, train)
