@@ -8,8 +8,20 @@ from util.conll_io import CoNLL09_Sent, CoNLL09_Sent_with_Pred
 from util.conll_io import conll09_generator
 
 
+
+def make_batch_labels_masks(sents, vocab):
+    masks = np.zeros((len(sents), vocab.size), dtype=np.float32)
+    for i, sent in enumerate(sents):
+        if len(sent.frame) == 0:
+            masks[i, :] = np.ones(vocab.size, dtype=np.float32)
+        for label in sent.frame:
+            if label in vocab:
+                masks[i, vocab.encode(label)] = 1.0
+    return masks
+
+
 def make_batch_field_sequence(sents, field, seq_length, vocab):
-    data = np.zeros((len(sents), seq_length), dtype=np.int32)
+    data = np.zeros((len(sents), seq_length), dtype=np.float32)
     for i, sent in enumerate(sents):
         words = getattr(sent, field)
         data[i, :len(words)] = vocab.encode_sequence(words)
@@ -35,6 +47,8 @@ def make_batch(sents, vocabs):
       preds_placeholder = tf.placeholder(tf.int32, shape=(batch_size,))
       preds_idx_placeholder = tf.placeholder(tf.int32, shape=(batch_size,))
       labels_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
+      labels_mask_placeholder = tf.placeholder(
+            tf.int32, shape=(batch_size, vocabs['labels'].size))    
     in that order.
     There is one predicate for each sentence.
       preds_placeholder is a list of encoded predicates
@@ -52,8 +66,8 @@ def make_batch(sents, vocabs):
     preds_idx = make_batch_field_single(sents, 'pred_idx')
     labels = make_batch_field_sequence(sents, 'labels',
                                        seq_length, vocabs['labels'])
-
-    return words, pos, lemmas, preds, preds_idx, labels
+    labels_mask = make_batch_labels_masks(sents, vocabs['labels'])
+    return words, pos, lemmas, preds, preds_idx, labels, labels_mask
 
     
 

@@ -16,12 +16,25 @@ class SRL_Model(object):
     def __init__(self, vocabs, args):
         self.args = args
         batch_size = args.batch_size
+
+        # Input placeholders
+        ## Inputs are shaped (batch_size, seq_length) unless the input
+        ##   applies to the whole sentence (e.g. predicate)
+        ## words: sequences of word ids
+        ## pos: predicted parts of speech
+        ## lemmas: lemma ids for the predicates, 0's for the other words
+        ## preds: integer id of the predicate in the sentence
+        ## preds_idx: the index (position) of the predicate in the sentence
+        ## labels: semantic role label for each word in the sequence
+        ## labels_mask: mask invalid arg labels (given the predicate)
         words_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
         pos_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
         lemmas_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
         preds_placeholder = tf.placeholder(tf.int32, shape=(batch_size,))
         preds_idx_placeholder = tf.placeholder(tf.int32, shape=(batch_size,))
         labels_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
+        labels_mask_placeholder = tf.placeholder(
+            tf.float32, shape=(batch_size, vocabs['labels'].size))
 
         # Word representation
 
@@ -145,13 +158,20 @@ class SRL_Model(object):
             # (batch_size,seq_len,out_size)*(batch_size,out_size,num_roles)
             #   = (batch_size,seq_len,num_roles)
             logits = tf.matmul(outputs, W)
-            predictions = tf.nn.softmax(logits)
+
+            # Mask the roles that can't be assigned (given the predicate)
+            # labels_mask_placeholder contains a vocab['labels'].size mask
+            # for each sentence, so tile the masks and multiply elementwise...
+            masks_tiled = tf.tile(tf.expand_dims(labels_mask_placeholder, 1),
+                                  (1, seq_length, 1))
+            masked_logits = tf.multiply(logits, masks_tiled)
+            predictions = tf.nn.softmax(masked_logits)
 
 
         # Loss op and optimizer
         cross_ent = tf.nn.sparse_softmax_cross_entropy_with_logits(
             labels=labels_placeholder,
-            logits=logits)
+            logits=masked_logits)
         loss = tf.reduce_mean(cross_ent)
         optimizer = tf.train.AdamOptimizer()
         train_op = optimizer.minimize(loss)
@@ -164,6 +184,7 @@ class SRL_Model(object):
         self.preds_placeholder = preds_placeholder
         self.preds_idx_placeholder = preds_idx_placeholder
         self.labels_placeholder = labels_placeholder
+        self.labels_mask_placeholder = labels_mask_placeholder
         self.predictions = predictions
         self.loss = loss
         self.train_op = train_op
@@ -176,14 +197,15 @@ class SRL_Model(object):
         Runs the model on the batch (through train_op if train=True)
         Returns the loss
         """
-        words, pos, lemmas, preds, preds_idx, labels = batch
+        words, pos, lemmas, preds, preds_idx, labels, labels_mask = batch
         feed_dict = {
             self.words_placeholder: words,
             self.pos_placeholder: pos,
             self.lemmas_placeholder: lemmas,
             self.preds_placeholder: preds,
             self.preds_idx_placeholder: preds_idx,
-            self.labels_placeholder: labels
+            self.labels_placeholder: labels,
+            self.labels_mask_placeholder: labels_mask
         }
         fetches = [self.loss, self.train_op]
         loss, _ = session.run(fetches, feed_dict=feed_dict)
@@ -197,14 +219,15 @@ class SRL_Model(object):
         Runs the model on the batch (through train_op if train=True)
         Returns loss and also predicted argument labels.
         """
-        words, pos, lemmas, preds, preds_idx, labels = batch
+        words, pos, lemmas, preds, preds_idx, labels, labels_mask  = batch
         feed_dict = {
             self.words_placeholder: words,
             self.pos_placeholder: pos,
             self.lemmas_placeholder: lemmas,
             self.preds_placeholder: preds,
             self.preds_idx_placeholder: preds_idx,
-            self.labels_placeholder: labels
+            self.labels_placeholder: labels,
+            self.labels_mask_placeholder: labels_mask
         }
         fetches = [self.loss, self.predictions]
         loss, probs = session.run(fetches, feed_dict=feed_dict)

@@ -39,11 +39,12 @@ class CoNLL09_Sent(object):
         self.lines = [line[:14] for line in lines]
         self.words = [line[1].lower() for line in lines]
         self.pos = [line[5] for line in lines]
-        # self.lemmas = [line[3] for line in lines if line[12] == 'Y' else '_']
-        self.lemmas = []
+
+        # If line[13] is the predicate in the form "pred_lemma.xx")
+        self.lemmas = []        
         for line in lines:
             if line[12] == 'Y':
-                self.lemmas.append(line[3])
+                self.lemmas.append(line[13].split('.')[0])
             else:
                 self.lemmas.append('_')
 
@@ -53,7 +54,7 @@ class CoNLL09_Sent(object):
         pred_num = 0
         for i,line in enumerate(lines):
             if line[12] == 'Y':
-                pred_lemma = line[3]
+                pred_lemma = line[13].split('.')[0]
                 pred_idx = i
                 arg_seq = [line[14 + pred_num] for line in lines]
                 self.pred_lists.append(
@@ -80,7 +81,7 @@ class CoNLL09_Sent(object):
 
 class CoNLL09_Sent_with_Pred(object):
     """Same as a CoNLL09_Sent but specifies an active predicate"""
-    def __init__(self, sent, pred_num):
+    def __init__(self, sent, pred_num, pred_to_frame):
         self.words = sent.words
         self.pos = sent.pos
         self.lemmas = sent.lemmas
@@ -92,11 +93,16 @@ class CoNLL09_Sent_with_Pred(object):
             self.pred = pred_list.pred_lemma
             self.pred_idx = pred_list.pred_idx
             self.labels = pred_list.arg_seq
+            if self.pred in pred_to_frame:
+                self.frame = pred_to_frame[self.pred]
+            else:
+                self.frame = []
         else:
             pred_list = []
             self.pred = None
             self.pred_idx = -1
             self.labels = []
+            self.frame = []
             
         self.predictions = []
         self.pred_num = pred_num
@@ -115,20 +121,31 @@ class CoNLL09_Sent_with_Pred(object):
         for i, row in enumerate(self.parent.predictions_list):
             row[self.pred_num] = predictions[i]
 
-        
+
+def get_pred_to_frame(fn_in='data/frames.txt'):
+    """Returns a dictionary mapping predicates to allowable frames"""
+    pred_to_frame = {}
+    with open(fn_in, 'r') as f:
+        for line in f:
+            parts = line.strip().split(' ')
+            pred_to_frame[parts[0]] = parts[1:]
+    return pred_to_frame
+
+            
 def conll09_generator(f):
     """
     Generator for reading data in CoNLL format.
     Given a file object, yields CoNLL09_Sent_with_Pred objects.
     """
+    pred_to_frame = get_pred_to_frame()
     lines = []
     for line in f:
         if line == '\n':
             sent = CoNLL09_Sent(lines)
             for i in xrange(sent.num_preds):
-                yield CoNLL09_Sent_with_Pred(sent, i)
+                yield CoNLL09_Sent_with_Pred(sent, i, pred_to_frame)
             if sent.num_preds == 0:
-                yield CoNLL09_Sent_with_Pred(sent, -1)
+                yield CoNLL09_Sent_with_Pred(sent, -1, pred_to_frame)
             lines = []
         else:
             lines.append(line.strip().split('\t'))
