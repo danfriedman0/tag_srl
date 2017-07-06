@@ -162,16 +162,17 @@ class SRL_Model(object):
             # Mask the roles that can't be assigned (given the predicate)
             # labels_mask_placeholder contains a vocab['labels'].size mask
             # for each sentence, so tile the masks and multiply elementwise...
-            masks_tiled = tf.tile(tf.expand_dims(labels_mask_placeholder, 1),
-                                  (1, seq_length, 1))
-            masked_logits = tf.multiply(logits, masks_tiled)
-            predictions = tf.nn.softmax(masked_logits)
+            # masks_tiled = tf.tile(tf.expand_dims(labels_mask_placeholder, 1),
+            #                       (1, seq_length, 1))
+            # masked_logits = tf.multiply(logits, masks_tiled)
+            # predictions = tf.nn.softmax(masked_logits)
+            predictions = tf.nn.softmax(logits)
 
 
         # Loss op and optimizer
         cross_ent = tf.nn.sparse_softmax_cross_entropy_with_logits(
             labels=labels_placeholder,
-            logits=masked_logits)
+            logits=logits)
         loss = tf.reduce_mean(cross_ent)
         optimizer = tf.train.AdamOptimizer()
         train_op = optimizer.minimize(loss)
@@ -197,15 +198,14 @@ class SRL_Model(object):
         Runs the model on the batch (through train_op if train=True)
         Returns the loss
         """
-        words, pos, lemmas, preds, preds_idx, labels, labels_mask = batch
+        words, pos, lemmas, preds, preds_idx, labels = batch
         feed_dict = {
             self.words_placeholder: words,
             self.pos_placeholder: pos,
             self.lemmas_placeholder: lemmas,
             self.preds_placeholder: preds,
             self.preds_idx_placeholder: preds_idx,
-            self.labels_placeholder: labels,
-            self.labels_mask_placeholder: labels_mask
+            self.labels_placeholder: labels
         }
         fetches = [self.loss, self.train_op]
         loss, _ = session.run(fetches, feed_dict=feed_dict)
@@ -219,20 +219,18 @@ class SRL_Model(object):
         Runs the model on the batch (through train_op if train=True)
         Returns loss and also predicted argument labels.
         """
-        words, pos, lemmas, preds, preds_idx, labels, labels_mask  = batch
+        words, pos, lemmas, preds, preds_idx, labels = batch
         feed_dict = {
             self.words_placeholder: words,
             self.pos_placeholder: pos,
             self.lemmas_placeholder: lemmas,
             self.preds_placeholder: preds,
             self.preds_idx_placeholder: preds_idx,
-            self.labels_placeholder: labels,
-            self.labels_mask_placeholder: labels_mask
+            self.labels_placeholder: labels
         }
         fetches = [self.loss, self.predictions]
-        loss, probs = session.run(fetches, feed_dict=feed_dict)
-        predictions = np.argmax(probs, axis=2)
-        return loss, predictions
+        loss, probabilities = session.run(fetches, feed_dict=feed_dict)
+        return loss, probabilities
     
 
     def run_training_epoch(self, session, vocabs, fn):
@@ -263,13 +261,13 @@ class SRL_Model(object):
         predicted_sents = []
         for i, (sents, batch) in enumerate(
                 batch_producer(batch_size, vocabs, fn)):
-            batch_loss, predictions = self.run_testing_batch(session, batch)
+            batch_loss, probabilities = self.run_testing_batch(session, batch)
             total_loss += batch_loss
             num_batches += 1
 
             # Add the predictions to the sentence objects for later evaluation
-            for sent, preds in zip(sents, predictions):
-                sent.add_predictions(preds, vocabs['labels'])
+            for sent, probs in zip(sents, probabilities):
+                sent.add_predictions(probs, vocabs['labels'])
                 # (sent.parent is the complete sentence, as opposed to the
                 # predicate-specific sentence)
                 if sent.parent not in predicted_sents:

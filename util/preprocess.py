@@ -3,6 +3,8 @@
 from __future__ import print_function
 
 import os
+import sys
+import xml.etree.ElementTree as ET
 
 from collections import Counter
 from util.data_loader import conll09_generator
@@ -66,7 +68,55 @@ def filter_words():
     f_out.close()
 
 
+def get_rolesets(fn):
+    try:
+        tree = ET.parse(fn)
+    except:
+        print(fn)
+        return []
+    pred = tree.find('predicate')
+    rolesets = []
+    for roleset in pred:
+        role_id = roleset.attrib['id']
+        line = [role_id]
+        roles = roleset.find('roles')
+        for role in roles:
+            try:
+                n = role.attrib['n']
+            except:
+                continue
+            line.append('A' + n)
+            line.append('R-A' + n)
+            line.append('C-A' + n)
+        rolesets.append(line)
+    return rolesets
+    
+
+def make_frame_file():
+    modifs = 'AM-LOC AM-DIR AM-MNR AM-EXT AM-REC AM-CAU AM-DIS AM-ADV AM-PNC AM-MOD AM-NEG AM-SLC AM-TMP AM-PRT AM-PRD R-AM-PNC R-AM-EXT R-AM-MNR R-AM-LOC R-AM-ADV R-AM-DIR R-AM-TMP R-AM-CAU C-R-AM-TMP C-AM-ADV C-AM-TMP C-AM-EXT C-AM-NEG C-AM-PNC C-AM-DIR C-AM-LOC C-AM-MNR C-AM-CAU C-AM-DIS'
+    root_dir = '/Users/danfriedman/resources/nombank.1.0/frames/'
+    frame_files = os.listdir(root_dir)
+    fn_out = 'data/frames.txt'
+    with open(fn_out, 'a') as f:
+        sys.stdout.write('[' + ' ' * 77 + ']')
+        tick = len(frame_files) // 77
+        for i, fn in enumerate(frame_files):
+            path = os.path.join(root_dir, fn)
+            rolesets = get_rolesets(path)
+            for roleset in rolesets:
+                line = ' '.join(roleset)
+                f.write(line + ' ' + modifs + '\n')
+            if i % tick == 0:
+                num_ticks = i // tick
+                bar = '[' + '='*num_ticks + ' '*(77-num_ticks) + ']'
+                sys.stdout.write('\r')
+                sys.stdout.write(bar)
+                sys.stdout.flush()
+            
+
+
 if __name__ == '__main__':
-    vocab_types = ['words', 'lemmas', 'pos', 'roles']
-    for vocab_type in vocab_types:
-        preprocess_vocab(vocab_type)
+    # vocab_types = ['words', 'lemmas', 'pos', 'roles']
+    # for vocab_type in vocab_types:
+    #     preprocess_vocab(vocab_type)
+    make_frame_file()

@@ -66,8 +66,8 @@ def make_batch(sents, vocabs):
     preds_idx = make_batch_field_single(sents, 'pred_idx')
     labels = make_batch_field_sequence(sents, 'labels',
                                        seq_length, vocabs['labels'])
-    labels_mask = make_batch_labels_masks(sents, vocabs['labels'])
-    return words, pos, lemmas, preds, preds_idx, labels, labels_mask
+    # labels_mask = make_batch_labels_masks(sents, vocabs['labels'])
+    return words, pos, lemmas, preds, preds_idx, labels
 
     
 

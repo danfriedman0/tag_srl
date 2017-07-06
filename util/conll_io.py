@@ -1,5 +1,7 @@
 # conll_io.py
 # Classes for reading and writing data in CoNLL-09 format
+import numpy as np
+
 
 class CoNLL09_Pred_List(object):
     """
@@ -10,7 +12,8 @@ class CoNLL09_Pred_List(object):
       arg_seq: a list of argument labels ('A3', 'AM-TMP', '_', ...),
         one for each word in the sentence
     """
-    def __init__(self, pred_lemma, pred_idx, arg_seq):
+    def __init__(self, full_pred, pred_lemma, pred_idx, arg_seq):
+        self.full_pred = full_pred
         self.pred_lemma = pred_lemma
         self.pred_idx = pred_idx
         self.arg_seq = arg_seq
@@ -54,11 +57,13 @@ class CoNLL09_Sent(object):
         pred_num = 0
         for i,line in enumerate(lines):
             if line[12] == 'Y':
+                full_pred = line[13]
                 pred_lemma = line[13].split('.')[0]
                 pred_idx = i
                 arg_seq = [line[14 + pred_num] for line in lines]
                 self.pred_lists.append(
-                    CoNLL09_Pred_List(pred_lemma, pred_idx, arg_seq))
+                    CoNLL09_Pred_List(
+                        full_pred, pred_lemma, pred_idx, arg_seq))
                 pred_num += 1
 
         self.num_preds = len(self.pred_lists)
@@ -91,12 +96,18 @@ class CoNLL09_Sent_with_Pred(object):
         if pred_num >= 0:
             pred_list = sent.pred_lists[pred_num]
             self.pred = pred_list.pred_lemma
+            self.full_pred = pred_list.full_pred
             self.pred_idx = pred_list.pred_idx
             self.labels = pred_list.arg_seq
-            if self.pred in pred_to_frame:
-                self.frame = pred_to_frame[self.pred]
-            else:
-                self.frame = []
+            # if self.pred in pred_to_frame:
+            #     self.frame = pred_to_frame[self.pred]
+            #     for label in self.labels:
+            #         if label != '_' and label not in self.frame:
+            #             print(self.pred, label)
+            # else:
+            #     print(self.pred)
+            #     self.frame = []
+            self.frame = []
         else:
             pred_list = []
             self.pred = None
@@ -113,11 +124,30 @@ class CoNLL09_Sent_with_Pred(object):
         return len(self.words)
 
 
-    def add_predictions(self, raw_predictions, vocab):
+    def add_predictions(self, probs, vocab):
+        """
+        probabilities is a matrix shaped (seq_length, num_labels)
+          containing a probability distribution over labels for each
+          word in the sequence
+        add_predictions picks the most probable valid label for each
+          word and also adds the predictions to the parent sentence
+          for writing to file later
+        """
         if self.pred_num < 0:
             return
+        
+        # # Only allow valid frames
+        # mask = np.zeros(vocab.size, dtype=np.float32)
+        # for label in self.frame:
+        #     mask[vocab.encode(label)] = 1.0
+        # masked_probs = probs * mask
+
+        # Decode predictions
+        raw_predictions = np.argmax(probs, axis=1)
         predictions = [vocab.decode(p) for p in raw_predictions]
         self.predictions = predictions
+
+        # Add the predictions to the parent's predictions list
         for i, row in enumerate(self.parent.predictions_list):
             row[self.pred_num] = predictions[i]
 
