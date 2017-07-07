@@ -122,6 +122,10 @@ def train(args):
 
         session.run(tf.global_variables_initializer())
 
+        print('Validating...')
+        valid_loss = model.run_testing_epoch(session, vocabs,
+                                             fn_valid, fn_sys)
+        
         print('Saving model to', model_dir)
         saver.save(session, model_dir, global_step=0)
         
@@ -136,7 +140,8 @@ def train(args):
 
             print('-' * 78)
             print('Validating...')
-            valid_loss = model.run_testing_epoch(session, vocabs, fn_valid)
+            valid_loss = model.run_testing_epoch(session, vocabs,
+                                                 fn_valid, fn_sys)
             print('Validation loss: {}'.format(valid_loss))
 
             print('-' * 78)

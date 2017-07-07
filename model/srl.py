@@ -259,7 +259,7 @@ class SRL_Model(object):
         return total_loss / num_batches
 
 
-    def run_testing_epoch(self, session, vocabs, fn):
+    def run_testing_epoch(self, session, vocabs, fn, fn_sys):
         batch_size = self.args.batch_size
         total_loss = 0
         num_batches = 0
@@ -289,10 +289,9 @@ class SRL_Model(object):
         print('\n')
 
         # Write the predictions to a file for evaluation
-        fn = 'output/predictions_dev.txt'
-        with open(fn, 'w') as f:
+        with open(fn_sys, 'w') as f:
             for sent in predicted_sents:
                 f.write(str(sent) + '\n')
-        print('Wrote predictions to', fn)
+        print('Wrote predictions to', fn_sys)
     
         return total_loss / num_batches    
