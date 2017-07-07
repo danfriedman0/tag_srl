@@ -41,11 +41,17 @@ parser.add_argument("--num_layers",
 parser.add_argument("--dropout",
                     help="Dropout probability (between LSTM layers)",
                     default=1.0, type=float)
+parser.add_argument("--learning_rate",
+                    help="Learning rate",
+                    default=0.01, type=float)
 parser.add_argument("--max_epochs",
                     help="Maximum number of epochs to train for",
                     default=25, type=int)
 parser.add_argument("--restrict_labels",
                     help="Only allow labels from a predicate's frame",
+                    action="store_true", default=False)
+parser.add_argument("--use_gold_preds",
+                    help="Use gold predicates instead of predicted",
                     action="store_true", default=False)
 parser.add_argument("--debug",
                     help="Use a smaller configuration for debuggin",
@@ -61,6 +67,7 @@ class Debug_Args(object):
         self.batch_size = 50
         self.num_layers = 2
         self.dropout = 0.7
+        self.learning_rate = 0.01
         self.role_embed_size = 8
         self.output_lemma_embed_size = 12
         self.max_epochs = 2
@@ -82,20 +89,41 @@ def run_evaluation_script(fn_gold, fn_sys, print_output=False):
     
 
 def train(args):
-    fn_train = 'data/conll2009/CoNLL2009-ST-English-train.txt'
-    fn_valid = 'data/conll2009/CoNLL2009-ST-English-development.txt'
-    fn_sys = 'output/predictions_dev.txt'
+    if args.use_gold_preds:
+        fn_train = 'data/conll09/gold/train.txt'
+        fn_valid = 'data/conll09/gold/dev.txt'
+    else:
+        fn_train = 'data/conll09/pred/train.txt'
+        fn_valid = 'data/conll09/pred/dev.txt'
+
+
+    model_suffix = ''
+    if args.restrict_labels:
+        model_suffix += '_rl'
+    if args.use_gold_preds:
+        model_suffix += '_gp'
+    else:
+        model_suffix += '_pp'
+    fn_sys = 'output/predictions/dev{}.txt'.format(model_suffix)
     
     vocabs = vocab.get_vocabs()
-    
+
     print("Building model...")
     model = SRL_Model(vocabs, args)
+
+    saver = tf.train.Saver(max_to_keep=1)
+    model_dir = 'output/models/srl' + model_suffix + '/model'
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
     
     with tf.Session() as session:
         best_f1 = 0
         bad_streak = 0
 
         session.run(tf.global_variables_initializer())
+
+        print('Saving model to', model_dir)
+        saver.save(session, model_dir, global_step=0)
         
         for i in xrange(args.max_epochs):
             print('-' * 78)
@@ -117,12 +145,14 @@ def train(args):
             print('Labeled F1:    {0:.2f}'.format(labeled_f1))
             print('Unlabeled F1:  {0:.2f}'.format(unlabeled_f1))
 
-            if labeled_f1 < best_f1:
+            if labeled_f1 > best_f1:
                 best_f1 = labeled_f1
-            elif best_f1 > labeled_f1:
+                print('Saving model to', model_dir)
+                saver.save(session, model_dir, global_step=i)
+            elif best_f1 < labeled_f1:
                 bad_streak += 1
-                if bad_streak >= 2:
-                    print('F1 decreased for 2 epochs in a row, stopping early')
+                if bad_streak >= 3:
+                    print('F1 decreased for 3 epochs in a row, stopping early')
                     break
             
 
