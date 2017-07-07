@@ -174,8 +174,13 @@ class SRL_Model(object):
             labels=labels_placeholder,
             logits=logits)
         loss = tf.reduce_mean(cross_ent)
+
+        ## Clip gradients (https://stackoverflow.com/a/36501922)
         optimizer = tf.train.AdamOptimizer()
-        train_op = optimizer.minimize(loss)
+        gvs = optimizer.compute_gradients(loss)
+        clipped_gvs = [(tf.clip_by_value(grad, -1., 1.), var)
+                       for grad, var in gvs]
+        train_op = optimizer.apply_gradients(clipped_gvs)
 
 
         # Add everything to the model
