@@ -29,20 +29,22 @@ def get_word_embeddings(idx_to_word, fn='data/embeddings/sskip.100.vectors'):
 def embed_inputs(raw_inputs,
                  vocab_size,
                  embed_size,
+                 reserve_zero=True,
                  name='embed',
                  embeddings=None):
     with tf.variable_scope(name):
         if embeddings is None:
             shape = (vocab_size, embed_size)
-            word_embeddings = tf.get_variable(
+            embeddings = tf.get_variable(
                 'embeddings',
                 shape=(vocab_size, embed_size),
                 initializer=tf.orthogonal_initializer(),
                 dtype=tf.float32)
             
-            # First row should always be zeros
-            zeros = tf.zeros((1, embed_size), dtype=tf.float32)
-            embeddings = tf.concat([zeros, word_embeddings], axis=0)
+            # If reserve_zero, make sure first row is always zeros
+            if reserve_zero:
+                zeros = tf.zeros((1, embed_size), dtype=tf.float32)
+                embeddings = tf.concat([zeros, embeddings], axis=0)
             
         inputs = tf.nn.embedding_lookup(embeddings, raw_inputs)
         return inputs
