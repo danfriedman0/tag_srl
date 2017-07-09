@@ -121,13 +121,6 @@ def train(args):
         bad_streak = 0
 
         session.run(tf.global_variables_initializer())
-
-        print('Validating...')
-        valid_loss = model.run_testing_epoch(session, vocabs,
-                                             fn_valid, fn_sys)
-        
-        print('Saving model to', model_dir)
-        saver.save(session, model_dir, global_step=0)
         
         for i in xrange(args.max_epochs):
             print('-' * 78)
@@ -152,12 +145,14 @@ def train(args):
 
             if labeled_f1 > best_f1:
                 best_f1 = labeled_f1
+                bad_streak = 0
                 print('Saving model to', model_dir)
                 saver.save(session, model_dir, global_step=i)
-            elif best_f1 < labeled_f1:
+            else:
+                print('F1 deteriorated')
                 bad_streak += 1
                 if bad_streak >= 3:
-                    print('F1 decreased for 3 epochs in a row, stopping early')
+                    print('No F1 improvement for 3 epochs, stopping early')
                     break
             
 
