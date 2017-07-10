@@ -43,6 +43,7 @@ class CoNLL09_Sent(object):
         self.words = [line[1].lower() for line in lines]
         self.pos = [line[5] for line in lines]
         self.stags = [line[-1] for line in lines]
+        self.preds = [line[13] for line in lines]
 
         # If line[13] is the predicate in the form "pred_lemma.xx")
         self.lemmas = []        
@@ -168,7 +169,7 @@ def get_pred_to_frame(fn_in='data/frames.txt'):
     return pred_to_frame
 
             
-def conll09_generator(f):
+def conll09_generator(f, only_sent=False):
     """
     Generator for reading data in CoNLL format.
     Given a file object, yields CoNLL09_Sent_with_Pred objects.
@@ -178,10 +179,13 @@ def conll09_generator(f):
     for line in f:
         if line == '\n':
             sent = CoNLL09_Sent(lines)
-            for i in xrange(sent.num_preds):
-                yield CoNLL09_Sent_with_Pred(sent, i, pred_to_frame)
-            if sent.num_preds == 0:
-                yield CoNLL09_Sent_with_Pred(sent, -1, pred_to_frame)
-            lines = []
+            lines = []            
+            if only_sent:
+                yield sent
+            else:
+                for i in xrange(sent.num_preds):
+                    yield CoNLL09_Sent_with_Pred(sent, i, pred_to_frame)
+                if sent.num_preds == 0:
+                    yield CoNLL09_Sent_with_Pred(sent, -1, pred_to_frame)
         else:
             lines.append(line.strip().split('\t'))

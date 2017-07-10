@@ -113,10 +113,49 @@ def make_frame_file():
                 sys.stdout.write('\r')
                 sys.stdout.write(bar)
                 sys.stdout.flush()
-            
 
 
+def get_preds_and_stags(fn):
+    pred_sents = []
+    stag_sents = []
+    with open(fn, 'r') as f:
+        for sent in conll09_generator(f, only_sent=True):
+            pred_sents.append(sent.preds)
+            stag_sents.append(sent.stags)
+    return pred_sents, stag_sents
+
+def add_preds_and_stags(fn_in, fn_out, pred_sents, stag_sents):
+    f_out = open(fn_out, 'w')
+    sent_idx = 0
+    line_idx = 0
+    with open(fn_in, 'r') as f:
+        for line in f:
+            if line == '\n':
+                sent_idx += 1
+                line_idx = 0
+                f_out.write('\n')
+                continue
+            parts = line.strip().split('\t')
+            parts[13] = pred_sents[sent_idx][line_idx]
+            parts.append(stag_sents[sent_idx][line_idx])
+            f_out.write('\t'.join(parts) + '\n')
+            line_idx += 1
+    f_out.close()
+
+    
 if __name__ == '__main__':
-    vocab_types = ['words', 'lemmas', 'pos', 'labels', 'stags']
-    for vocab_type in vocab_types:
-        preprocess_vocab(vocab_type)
+    # vocab_types = ['words', 'lemmas', 'pos', 'labels', 'stags']
+    # for vocab_type in vocab_types:
+    #     preprocess_vocab(vocab_type)
+    fns = ['train', 'dev', 'test', 'ood']
+    for fn in fns:
+        print(fn + ':')
+        
+        print('Getting preds and stags...')        
+        fn_pred = 'data/conll09/pred/{}.tag'.format(fn)
+        pred_sents, stag_sents = get_preds_and_stags(fn_pred)
+
+        print('Writing to file...')
+        fn_in = 'data/conll09/gold/{}.txt'.format(fn)
+        fn_out = 'data/conll09/pred/{}_fixed.tag'.format(fn)
+        add_preds_and_stags(fn_in, fn_out, pred_sents, stag_sents)
