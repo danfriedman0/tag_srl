@@ -8,6 +8,7 @@ import tensorflow as tf
 import cPickle as pickle
 
 from util import vocab
+from model import SRL_Model
 
 
 parser = argparse.ArgumentParser()
@@ -34,7 +35,7 @@ def test(args):
     print("Building model...")
     model = SRL_Model(vocabs, model_args)
 
-    saver = tf.train.Saver(max_to_keep=1)
+    saver = tf.train.Saver()
     
     with tf.Session() as session:
         print('Restoring model...')
