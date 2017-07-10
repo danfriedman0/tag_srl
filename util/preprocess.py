@@ -144,18 +144,18 @@ def add_preds_and_stags(fn_in, fn_out, pred_sents, stag_sents):
 
     
 if __name__ == '__main__':
-    # vocab_types = ['words', 'lemmas', 'pos', 'labels', 'stags']
-    # for vocab_type in vocab_types:
-    #     preprocess_vocab(vocab_type)
-    fns = ['train', 'dev', 'test', 'ood']
-    for fn in fns:
-        print(fn + ':')
+    vocab_types = ['words', 'lemmas', 'pos', 'labels', 'stags']
+    for vocab_type in vocab_types:
+        preprocess_vocab(vocab_type)
+    # fns = ['train', 'dev', 'test', 'ood']
+    # for fn in fns:
+    #     print(fn + ':')
         
-        print('Getting preds and stags...')        
-        fn_pred = 'data/conll09/pred/{}.tag'.format(fn)
-        pred_sents, stag_sents = get_preds_and_stags(fn_pred)
+    #     print('Getting preds and stags...')        
+    #     fn_pred = 'data/conll09/pred/{}.tag'.format(fn)
+    #     pred_sents, stag_sents = get_preds_and_stags(fn_pred)
 
-        print('Writing to file...')
-        fn_in = 'data/conll09/gold/{}.txt'.format(fn)
-        fn_out = 'data/conll09/pred/{}_fixed.tag'.format(fn)
-        add_preds_and_stags(fn_in, fn_out, pred_sents, stag_sents)
+    #     print('Writing to file...')
+    #     fn_in = 'data/conll09/gold/{}.txt'.format(fn)
+    #     fn_out = 'data/conll09/pred/{}_fixed.tag'.format(fn)
+    #     add_preds_and_stags(fn_in, fn_out, pred_sents, stag_sents)
