@@ -53,6 +53,12 @@ parser.add_argument("--restrict_labels",
 parser.add_argument("--use_gold_preds",
                     help="Use gold predicates instead of predicted",
                     action="store_true", default=False)
+parser.add_argument("--use_stags",
+                    help="Use UD supertags in the word representation",
+                    action="store_true", default=False)
+parser.add_argument("--stag_embed_size",
+                    help="Embedding size for supertags",
+                    default=50, type=int)
 parser.add_argument("--debug",
                     help="Use a smaller configuration for debuggin",
                     action="store_true", default=False)
@@ -71,6 +77,10 @@ class Debug_Args(object):
         self.role_embed_size = 8
         self.output_lemma_embed_size = 12
         self.max_epochs = 2
+        self.use_stags = True
+        self.stag_embed_size = 16
+        self.use_gold_preds = False
+        self.restrict_labels = True
 
 
 def run_evaluation_script(fn_gold, fn_sys, print_output=False):
@@ -89,13 +99,9 @@ def run_evaluation_script(fn_gold, fn_sys, print_output=False):
     
 
 def train(args):
-    if args.use_gold_preds:
-        fn_train = 'data/conll09/gold/train.txt'
-        fn_valid = 'data/conll09/gold/dev.txt'
-    else:
-        fn_train = 'data/conll09/pred/train.txt'
-        fn_valid = 'data/conll09/pred/dev.txt'
-
+    data_dir = 'gold' if args.use_gold_preds else 'pred'
+    fn_train = 'data/conll09/{}/train.tag'.format(data_dir)
+    fn_valid = 'data/conll09/{}/dev.tag'.format(data_dir)
 
     model_suffix = ''
     if args.restrict_labels:
@@ -104,6 +110,8 @@ def train(args):
         model_suffix += '_gp'
     else:
         model_suffix += '_pp'
+    if args.use_stags:
+        model_suffix += '_st'
     fn_sys = 'output/predictions/dev{}.txt'.format(model_suffix)
     
     vocabs = vocab.get_vocabs()

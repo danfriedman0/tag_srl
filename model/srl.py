@@ -27,6 +27,7 @@ class SRL_Model(object):
         ## preds_idx: the index (position) of the predicate in the sentence
         ## labels: semantic role label for each word in the sequence
         ## labels_mask: mask invalid arg labels (given the predicate)
+        ## stags_placeholder: a UD supertag for each word
         words_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
         pos_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
         lemmas_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
@@ -35,6 +36,7 @@ class SRL_Model(object):
         labels_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
         labels_mask_placeholder = tf.placeholder(
             tf.float32, shape=(batch_size, vocabs['labels'].size))
+        stags_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
 
         # Word representation
 
@@ -69,29 +71,40 @@ class SRL_Model(object):
             embed_size=args.lemma_embed_size,
             name='lemma_embedding')
 
+        word_features = [word_embeddings, pretr_word_embeddings,
+                         pos_embeddings, lemma_embeddings]
+
+        ## UD supertag embeddings
+        if args.use_stags:
+            stag_embeddings = layers.embed_inputs(
+                raw_inputs=stags_placeholder,
+                vocab_size=vocabs['stags'].size,
+                embed_size=args.stag_embed_size,
+                name='stag_embedding')
+            word_features.append(stag_embeddings)
+        
         ## Binary flags to mark the predicate
         seq_length = tf.shape(words_placeholder)[1]
         pred_markers = tf.expand_dims(tf.one_hot(preds_idx_placeholder,
                                                  seq_length,
                                                  dtype=tf.float32),
                                       axis=-1)
-
-        ## Concatenate everything on the last dimension
-        inputs = tf.concat([word_embeddings,
-                            pretr_word_embeddings,
-                            pos_embeddings,
-                            lemma_embeddings,
-                            pred_markers],
-                           axis=2)
+        word_features.append(pred_markers)
+        
+        ## Concatenate all the word features on the last dimension
+        inputs = tf.concat(word_features, axis=2)
 
         ## (num_steps, batch_size, embed_size)
+        ## num_steps has to be first because LSTM scans over the 1st dimension
         lstm_inputs = tf.transpose(inputs, perm=[1,0,2])
 
         input_size = (args.word_embed_size +
                       pretr_embed_size +
                       args.pos_embed_size +
                       args.lemma_embed_size + 1)
-
+        if args.use_stags:
+            input_size += args.stag_embed_size
+        
 
         # BiLSTM
         bilstm, zero_state = lstm.make_stacked_bilstm(
@@ -191,6 +204,7 @@ class SRL_Model(object):
         self.preds_idx_placeholder = preds_idx_placeholder
         self.labels_placeholder = labels_placeholder
         self.labels_mask_placeholder = labels_mask_placeholder
+        self.stags_placeholder = stags_placeholder
         self.predictions = predictions
         self.loss = loss
         self.train_op = train_op
@@ -203,14 +217,15 @@ class SRL_Model(object):
         Runs the model on the batch (through train_op if train=True)
         Returns the loss
         """
-        words, pos, lemmas, preds, preds_idx, labels = batch
+        words, pos, lemmas, preds, preds_idx, labels, stags = batch
         feed_dict = {
             self.words_placeholder: words,
             self.pos_placeholder: pos,
             self.lemmas_placeholder: lemmas,
             self.preds_placeholder: preds,
             self.preds_idx_placeholder: preds_idx,
-            self.labels_placeholder: labels
+            self.labels_placeholder: labels,
+            self.stags_placeholder: stags
         }
         fetches = [self.loss, self.train_op]
         loss, _ = session.run(fetches, feed_dict=feed_dict)
@@ -224,14 +239,15 @@ class SRL_Model(object):
         Runs the model on the batch (through train_op if train=True)
         Returns loss and also predicted argument labels.
         """
-        words, pos, lemmas, preds, preds_idx, labels = batch
+        words, pos, lemmas, preds, preds_idx, labels, stags = batch
         feed_dict = {
             self.words_placeholder: words,
             self.pos_placeholder: pos,
             self.lemmas_placeholder: lemmas,
             self.preds_placeholder: preds,
             self.preds_idx_placeholder: preds_idx,
-            self.labels_placeholder: labels
+            self.labels_placeholder: labels,
+            self.stags_placeholder: stags
         }
         fetches = [self.loss, self.predictions]
         loss, probabilities = session.run(fetches, feed_dict=feed_dict)

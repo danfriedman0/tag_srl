@@ -42,6 +42,7 @@ class CoNLL09_Sent(object):
         self.lines = [line[:14] for line in lines]
         self.words = [line[1].lower() for line in lines]
         self.pos = [line[5] for line in lines]
+        self.stags = [line[-1] for line in lines]
 
         # If line[13] is the predicate in the form "pred_lemma.xx")
         self.lemmas = []        
@@ -90,6 +91,7 @@ class CoNLL09_Sent_with_Pred(object):
         self.words = sent.words
         self.pos = sent.pos
         self.lemmas = sent.lemmas
+        self.stags = sent.stags
 
         # pred_num < 0 means that this is a dummy object for a sentence
         # with no predicates
@@ -101,7 +103,11 @@ class CoNLL09_Sent_with_Pred(object):
             self.labels = pred_list.arg_seq
             if self.pred in pred_to_frame:
                 self.frame = pred_to_frame[self.pred]
+                # for label in self.labels:
+                #     if label != '_' and label not in self.frame:
+                #         print(self.full_pred, label)
             else:
+                # print(self.full_pred)
                 self.frame = []
             self.frame = []
         else:

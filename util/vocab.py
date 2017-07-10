@@ -73,7 +73,7 @@ def get_vocabs():
     Returns a dictionary of Vocab objects for words, parts of speech,
       predicate lemmas, and semantic role labels
     """
-    vocab_types = ['words', 'pos', 'lemmas', 'labels']
+    vocab_types = ['words', 'pos', 'lemmas', 'labels', 'stags']
     vocabs = {}
     for vocab_type in vocab_types:
         fn = 'data/vocab/{}.txt'.format(vocab_type)
