@@ -28,6 +28,7 @@ class SRL_Model(object):
         ## labels: semantic role label for each word in the sequence
         ## labels_mask: mask invalid arg labels (given the predicate)
         ## stags_placeholder: a UD supertag for each word
+        ## use_dropout_placeholder: 0.0 or 1.0, whether or not to use dropout
         words_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
         pos_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
         lemmas_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
@@ -37,6 +38,7 @@ class SRL_Model(object):
         labels_mask_placeholder = tf.placeholder(
             tf.float32, shape=(batch_size, vocabs['labels'].size))
         stags_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
+        use_dropout_placeholder = tf.placeholder(tf.float32, shape=())
 
         # Word representation
 
@@ -107,12 +109,13 @@ class SRL_Model(object):
         
 
         # BiLSTM
+        dropout = args.dropout * use_dropout_placeholder
         bilstm, zero_state = lstm.make_stacked_bilstm(
             input_size=input_size,
             state_size=args.state_size,
             batch_size=args.batch_size,
             num_layers=args.num_layers,
-            dropout=args.dropout)
+            dropout=dropout)
 
         lstm_outputs = bilstm(lstm_inputs, zero_state)
         outputs = tf.transpose(lstm_outputs, perm=[1, 0, 2])
@@ -205,6 +208,7 @@ class SRL_Model(object):
         self.labels_placeholder = labels_placeholder
         self.labels_mask_placeholder = labels_mask_placeholder
         self.stags_placeholder = stags_placeholder
+        self.use_dropout_placeholder = use_dropout_placeholder
         self.predictions = predictions
         self.loss = loss
         self.train_op = train_op
@@ -225,7 +229,8 @@ class SRL_Model(object):
             self.preds_placeholder: preds,
             self.preds_idx_placeholder: preds_idx,
             self.labels_placeholder: labels,
-            self.stags_placeholder: stags
+            self.stags_placeholder: stags,
+            self.use_dropout_placeholder: 0.0
         }
         fetches = [self.loss, self.train_op]
         loss, _ = session.run(fetches, feed_dict=feed_dict)
@@ -247,7 +252,8 @@ class SRL_Model(object):
             self.preds_placeholder: preds,
             self.preds_idx_placeholder: preds_idx,
             self.labels_placeholder: labels,
-            self.stags_placeholder: stags
+            self.stags_placeholder: stags,
+            self.use_dropout_placeholder: 1.0
         }
         fetches = [self.loss, self.predictions]
         loss, probabilities = session.run(fetches, feed_dict=feed_dict)
