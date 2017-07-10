@@ -1,55 +1,53 @@
-# Test the model so far.
+# Test a trained SRL model
+from __future__ import print_function
+from __future__ import division
 
-from model import srl
+import argparse
+import tensorflow as tf
+import cPickle as pickle
 
-class Vocab(object):
-    def __init__(self, size=10):
-        self.size = size
-        self.idx_to_word = None
-
-    def add_idx_to_word(self, idx_to_word):
-        self.idx_to_word = idx_to_word
-        self.size = max(idx_to_word.keys()) + 1
-
-        
-class Args(object):
-    def __init__(self):
-        self.word_embed_size = 16
-        self.pos_embed_size = 4
-        self.lemma_embed_size = 8
-        self.state_size = 32
-        self.batch_size = 50
-        self.num_layers = 3
-        self.dropout = 0.7
-        self.role_embed_size = 8
-        self.output_lemma_embed_size = 12
+from util import vocab
 
 
-def get_idx_to_word():
-    fn = 'data/embeddings/sskip.100.vectors'
-    idx_to_word = {}
-    i = 1
-    with open(fn, 'r') as f:
-        for line in f:
-            word = line.split(' ')[0]
-            idx_to_word[i] = word
-            i += 1
-    return idx_to_word
-        
-        
-def test():
-    vocabs = {
-        'words': Vocab(),
-        'lemmas': Vocab(),
-        'pos': Vocab(),
-        'roles': Vocab()
-    }
-    args = Args()
+parser = argparse.ArgumentParser()
+parser.add_argument("model_dir", help="Directory containing the saved model")
+parser.add_argument("data", help="train, test, dev, or ood",
+                    choices=['train', 'test', 'dev', 'ood'])
+parser.add_argument("-rl", "--restrict_labels", dest="restrict_labels",
+                    help="Only allow valid labels",
+                    action="store_true", default=False)
 
-    vocabs['words'].add_idx_to_word(get_idx_to_word())
+
+def test(args):
+    fn_valid = 'data/conll09/pred/{}.tag'.format(args.data)
+    fn_gold = 'data/conll09/gold/{}.txt'.format(args.data)
+    fn_sys = 'output/predictions/{}.txt'.format(args.data)
+    model_dir = args.model_dir
     
-    srl.SRL_Model(vocabs, args)
+    vocabs = vocab.get_vocabs()
 
+    with open(model_dir + 'args.pkl', 'r') as f:
+        model_args = pickle.load(f)
+    model_args.restrict_labels = args.restrict_labels
+    
+    print("Building model...")
+    model = SRL_Model(vocabs, model_args)
 
-if __name__ == '__main__':
-    test()
+    saver = tf.train.Saver(max_to_keep=1)
+    
+    with tf.Session() as session:
+        print('Restoring model...')
+        saver.restore(session, tf.train.latest_checkpoint(model_dir))
+        
+        print('-' * 78)
+        print('Validating...')
+        valid_loss = model.run_testing_epoch(session, vocabs,
+                                             fn_valid, fn_sys)
+        print('Validation loss: {}'.format(valid_loss))
+
+        print('-' * 78)
+        print('Running evaluation script...')
+        labeled_f1, unlabeled_f1 = run_evaluation_script(fn_gold, fn_sys)
+        print('Labeled F1:    {0:.2f}'.format(labeled_f1))
+        print('Unlabeled F1:  {0:.2f}'.format(unlabeled_f1))
+

@@ -6,6 +6,7 @@ from __future__ import division
 import argparse
 import os
 import tensorflow as tf
+import cPickle as pickle
 from timeit import default_timer as timer
 from subprocess import check_output
 
@@ -102,7 +103,8 @@ def train(args):
     data_dir = 'gold' if args.use_gold_preds else 'pred'
     fn_train = 'data/conll09/{}/train.tag'.format(data_dir)
     fn_valid = 'data/conll09/{}/dev.tag'.format(data_dir)
-
+    fn_gold = 'data/conll09/gold/dev.txt'
+    
     model_suffix = ''
     if args.restrict_labels:
         model_suffix += '_rl'
@@ -122,9 +124,12 @@ def train(args):
     model = SRL_Model(vocabs, args)
 
     saver = tf.train.Saver(max_to_keep=1)
-    model_dir = 'output/models/srl' + model_suffix + '/model'
+    model_dir = 'output/models/srl' + model_suffix + '/'
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
+    print('Saving args to', model_dir + 'args.pkl')
+    with open(model_dir + 'args.pkl', 'w') as f:
+        pickle.dump(args, f)
     
     with tf.Session() as session:
         best_f1 = 0
@@ -149,15 +154,15 @@ def train(args):
 
             print('-' * 78)
             print('Running evaluation script...')
-            labeled_f1, unlabeled_f1 = run_evaluation_script(fn_valid, fn_sys)
+            labeled_f1, unlabeled_f1 = run_evaluation_script(fn_gold, fn_sys)
             print('Labeled F1:    {0:.2f}'.format(labeled_f1))
             print('Unlabeled F1:  {0:.2f}'.format(unlabeled_f1))
 
             if labeled_f1 > best_f1:
                 best_f1 = labeled_f1
                 bad_streak = 0
-                print('Saving model to', model_dir)
-                saver.save(session, model_dir, global_step=i)
+                print('Saving model to', model_dir + 'model')
+                saver.save(session, model_dir + 'model', global_step=i)
             else:
                 print('F1 deteriorated')
                 bad_streak += 1
