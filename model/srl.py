@@ -173,7 +173,7 @@ class SRL_Model(object):
 
             # (batch_size,seq_len,out_size)*(batch_size,out_size,num_roles)
             #   = (batch_size,seq_len,num_roles)
-            logits = tf.matmul(outputs, W)
+            logits = tf.matmul(combined_outputs, W)
 
             # Mask the roles that can't be assigned (given the predicate)
             # labels_mask_placeholder contains a vocab['labels'].size mask
