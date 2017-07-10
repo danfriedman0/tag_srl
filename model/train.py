@@ -8,7 +8,6 @@ import os
 import tensorflow as tf
 import cPickle as pickle
 from timeit import default_timer as timer
-from subprocess import check_output
 
 from model.srl import SRL_Model
 from eval.eval import run_evaluation_script
@@ -154,6 +153,7 @@ def train(args):
                 bad_streak += 1
                 if bad_streak >= 3:
                     print('No F1 improvement for 3 epochs, stopping early')
+                    print('Best F1 score: {0:.2f}'.format(best_f1))
                     break
             
 
