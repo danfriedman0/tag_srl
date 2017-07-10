@@ -93,11 +93,11 @@ def get_rolesets(fn):
     return rolesets
     
 
-def make_frame_file():
+def make_frame_file(frame_type):
     modifs = 'AM-LOC AM-DIR AM-MNR AM-EXT AM-REC AM-CAU AM-DIS AM-ADV AM-PNC AM-MOD AM-NEG AM-SLC AM-TMP AM-PRT AM-PRD R-AM-PNC R-AM-EXT R-AM-MNR R-AM-LOC R-AM-ADV R-AM-DIR R-AM-TMP R-AM-CAU C-R-AM-TMP C-AM-ADV C-AM-TMP C-AM-EXT C-AM-NEG C-AM-PNC C-AM-DIR C-AM-LOC C-AM-MNR C-AM-CAU C-AM-DIS'
-    root_dir = '/Users/danfriedman/resources/CoNLL2009/LDC2012T04-CoNLL2009-Shared-Task-Part2/data/CoNLL2009-ST-English/nb_frames/'
+    root_dir = '/Users/danfriedman/resources/CoNLL2009/LDC2012T04-CoNLL2009-Shared-Task-Part2/data/CoNLL2009-ST-English/{}b_frames/'.format(frame_type)
     frame_files = os.listdir(root_dir)
-    fn_out = 'data/frames.txt'
+    fn_out = 'data/{}b_frames.txt'.format(frame_type)
     with open(fn_out, 'a') as f:
         sys.stdout.write('[' + ' ' * 77 + ']')
         tick = len(frame_files) // 77

@@ -136,7 +136,7 @@ class SRL_Model(object):
         ## Compose role and (output) pred embeddings to get projection weights
         ## (see section 2.4.3 of Marcheggiani et al 2017)
         num_roles = vocabs['labels'].size
-        lstm_output_size = args.state_size * 2
+        lstm_output_size = args.state_size * 4 # (2 LSTMs for word, 2 for pred)
 
         role_embeddings = tf.get_variable(
             'role_embeddings',

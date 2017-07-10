@@ -110,11 +110,11 @@ class CoNLL09_Sent_with_Pred(object):
             else:
                 # print(self.full_pred)
                 self.frame = []
-            self.frame = []
+
         else:
             pred_list = []
             self.pred = None
-            self.pred_idx = -1
+            self.pred_idx = 0
             self.labels = []
             self.frame = []
             
