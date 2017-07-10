@@ -112,6 +112,8 @@ def train(args):
         model_suffix += '_pp'
     if args.use_stags:
         model_suffix += '_st'
+    if args.dropout < 1.0:
+        model_suffix += '_dr{}'.format(args.dropout)
     fn_sys = 'output/predictions/dev{}.txt'.format(model_suffix)
     
     vocabs = vocab.get_vocabs()
