@@ -109,7 +109,7 @@ class SRL_Model(object):
         
 
         # BiLSTM
-        dropout = args.dropout * use_dropout_placeholder
+        dropout = 1.0 - (1.0 - args.dropout) * use_dropout_placeholder
         bilstm, zero_state = lstm.make_stacked_bilstm(
             input_size=input_size,
             state_size=args.state_size,
@@ -230,7 +230,7 @@ class SRL_Model(object):
             self.preds_idx_placeholder: preds_idx,
             self.labels_placeholder: labels,
             self.stags_placeholder: stags,
-            self.use_dropout_placeholder: 0.0
+            self.use_dropout_placeholder: 1.0
         }
         fetches = [self.loss, self.train_op]
         loss, _ = session.run(fetches, feed_dict=feed_dict)
@@ -253,7 +253,7 @@ class SRL_Model(object):
             self.preds_idx_placeholder: preds_idx,
             self.labels_placeholder: labels,
             self.stags_placeholder: stags,
-            self.use_dropout_placeholder: 1.0
+            self.use_dropout_placeholder: 0.0
         }
         fetches = [self.loss, self.predictions]
         loss, probabilities = session.run(fetches, feed_dict=feed_dict)
