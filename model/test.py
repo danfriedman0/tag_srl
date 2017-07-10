@@ -8,7 +8,7 @@ import tensorflow as tf
 import cPickle as pickle
 
 from util import vocab
-from model import SRL_Model
+from model.srl import SRL_Model
 
 
 parser = argparse.ArgumentParser()
