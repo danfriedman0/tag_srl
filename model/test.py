@@ -2,6 +2,7 @@
 from __future__ import print_function
 from __future__ import division
 
+import os
 import argparse
 import tensorflow as tf
 import cPickle as pickle
@@ -26,7 +27,7 @@ def test(args):
     
     vocabs = vocab.get_vocabs()
 
-    with open(model_dir + 'args.pkl', 'r') as f:
+    with open(os.path.join(model_dir, 'args.pkl'), 'r') as f:
         model_args = pickle.load(f)
     model_args.restrict_labels = args.restrict_labels
     
@@ -51,3 +52,7 @@ def test(args):
         print('Labeled F1:    {0:.2f}'.format(labeled_f1))
         print('Unlabeled F1:  {0:.2f}'.format(unlabeled_f1))
 
+
+if __name__ == '__main__':
+    args = parser.parse_args()
+    test(args)
