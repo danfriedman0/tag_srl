@@ -1,4 +1,5 @@
 # Wrapper for the CoNLL evaluation script
+import os
 from subprocess import check_output
 
 
