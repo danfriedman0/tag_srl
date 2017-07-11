@@ -60,6 +60,9 @@ parser.add_argument("--use_stags",
 parser.add_argument("--stag_embed_size",
                     help="Embedding size for supertags",
                     default=50, type=int)
+parser.add_argument("--use_basic_classifier",
+                    help="Use the basic role classifier",
+                    action="store_true", default=False)
 parser.add_argument("--debug",
                     help="Use a smaller configuration for debuggin",
                     action="store_true", default=False)
@@ -82,6 +85,7 @@ class Debug_Args(object):
         self.stag_embed_size = 16
         self.use_gold_preds = False
         self.restrict_labels = True
+        self.use_basic_classifier = True
     
 
 def train(args):
@@ -101,6 +105,8 @@ def train(args):
         model_suffix += '_st'
     if args.dropout < 1.0:
         model_suffix += '_dr{}'.format(args.dropout)
+    if args.use_basic_classifier:
+        model_suffix += '_bc'
     fn_sys = 'output/predictions/dev{}.txt'.format(model_suffix)
     
     vocabs = vocab.get_vocabs()

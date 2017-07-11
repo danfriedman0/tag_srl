@@ -2,7 +2,6 @@
 # Classes for reading and writing data in CoNLL-09 format
 import numpy as np
 
-
 class CoNLL09_Pred_List(object):
     """
     Stores information about a predicate and its arguments.
@@ -23,7 +22,8 @@ class CoNLL09_Pred_List(object):
         arg_seq = ' '.join(self.arg_seq)
         return '\t'.join([self.pred_lemma, pred_idx, arg_seq])
 
-        
+
+    
 class CoNLL09_Sent(object):
     def __init__(self, lines):
         """
@@ -104,9 +104,8 @@ class CoNLL09_Sent_with_Pred(object):
             self.labels = pred_list.arg_seq
             if self.pred in pred_to_frame:
                 self.frame = pred_to_frame[self.pred]
-                # for label in self.labels:
+                # for i, label in enumerate(self.labels):
                 #     if label != '_' and label not in self.frame:
-                #         print(self.full_pred, label)
             else:
                 # print(self.full_pred)
                 self.frame = []
