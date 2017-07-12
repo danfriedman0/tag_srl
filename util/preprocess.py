@@ -8,9 +8,10 @@ import xml.etree.ElementTree as ET
 
 from collections import Counter
 from util.data_loader import conll09_generator
+from util.vocab import normalize
 
 
-def get_vocab_counts(vocab_type, lowercase=False):
+def get_vocab_counts(vocab_type):
     """
     vocab_type must be "words", "lemmas", or "pos"
     returns a counter
@@ -22,8 +23,6 @@ def get_vocab_counts(vocab_type, lowercase=False):
     with open(fn_in, 'r') as f:
         for sent in conll09_generator(f):
             words = getattr(sent, vocab_type)
-            if lowercase:
-                words = [word.lower() for word in words]
             counts.update(words)
     return counts
 
@@ -42,15 +41,15 @@ def get_label_vocab_counts():
 
 def preprocess_vocab(vocab_type):
     print('Getting vocab for {}...'.format(vocab_type))
-    counts = get_vocab_counts(vocab_type, vocab_type=='words')
+    counts = get_vocab_counts(vocab_type)
     if not os.path.exists('data/vocab/'):
         os.makedirs('data/vocab')
     fn_out = 'data/vocab/{}.txt'.format(vocab_type)
     with open(fn_out, 'w') as f_out:
         for word, count in counts.most_common():
             f_out.write('{} {}\n'.format(word, count))
-    if vocab_type == 'words':
-        filter_words()
+    # if vocab_type == 'words':
+    #     filter_words()
 
 
 def filter_words():
@@ -144,9 +143,12 @@ def add_preds_and_stags(fn_in, fn_out, pred_sents, stag_sents):
 
     
 if __name__ == '__main__':
-    vocab_types = ['words', 'lemmas', 'pos', 'labels', 'stags']
-    for vocab_type in vocab_types:
-        preprocess_vocab(vocab_type)
+    # vocab_types = ['words', 'lemmas', 'pos', 'labels', 'stags']
+    # for vocab_type in vocab_types:
+    #     preprocess_vocab(vocab_type)
+
+    preprocess_vocab('words')
+    
     # fns = ['train', 'dev', 'test', 'ood']
     # for fn in fns:
     #     print(fn + ':')

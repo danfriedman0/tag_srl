@@ -18,11 +18,12 @@ def get_word_embeddings(idx_to_word, fn='data/embeddings/sskip.100.vectors'):
     num_words = max(idx_to_word.keys()) + 1
     embed_size = len(word_to_vec.values()[0])
     embeddings = np.zeros((num_words, embed_size), dtype=np.float32)
+    unk = np.random.randn(embed_size)
     for idx, word in idx_to_word.iteritems():
         if word in word_to_vec:
             embeddings[idx, :] = word_to_vec[word]
         elif idx > 0:
-            embeddings[idx, :] = np.random.randn(embed_size)
+            embeddings[idx, :] = unk
     return embeddings
 
 

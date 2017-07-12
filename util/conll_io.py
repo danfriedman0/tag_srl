@@ -40,7 +40,7 @@ class CoNLL09_Sent(object):
             for each predicate in the sentence
         """
         self.lines = [line[:14] for line in lines]
-        self.words = [line[1].lower() for line in lines]
+        self.words = [self.normalize(line[1]) for line in lines]
         self.pos = [line[5] for line in lines]
         self.stags = [line[-1] for line in lines]
         self.preds = [line[13] for line in lines]
@@ -73,6 +73,34 @@ class CoNLL09_Sent(object):
                                  for _ in xrange(len(self.words))]
         
 
+    def normalize(self, token):
+        """From Marcheggiani et al"""
+        penn_tokens = {
+            '-LRB-': '(',
+            '-RRB-': ')',
+            '-LSB-': '[',
+            '-RSB-': ']',
+            '-LCB-': '{',
+            '-RCB-': '}' 
+        }
+        if token in penn_tokens:
+            return penn_tokens[token]
+
+        token = token.lower()
+        try:
+            int(token)
+            return "<NUM>"
+        except:
+            pass
+        try:
+            float(token.replace(',', ''))
+            return "<FLOAT>"
+        except:
+            pass
+        return token
+   
+
+        
     def __str__(self):
         out = []
         pred_idxs = [p_list.pred_idx for p_list in self.pred_lists]

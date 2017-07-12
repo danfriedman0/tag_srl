@@ -67,6 +67,33 @@ class Vocab(object):
     def __contains__(self, word):
         return word in self.word_to_idx
 
+
+def normalize(token):
+    """From Marcheggiani et al"""
+    penn_tokens = {
+        '-LRB-': '(',
+        '-RRB-': ')',
+        '-LSB-': '[',
+        '-RSB-': ']',
+        '-LCB-': '{',
+        '-RCB-': '}' 
+    }
+    if token in penn_tokens:
+        return penn_tokens[token]
+
+    token = token.lower()
+    try:
+        int(token)
+        return "<NUM>"
+    except:
+        pass
+    try:
+        float(token.replace(',', ''))
+        return "<FLOAT>"
+    except:
+        pass
+    return token
+    
     
 def get_vocabs():
     """
