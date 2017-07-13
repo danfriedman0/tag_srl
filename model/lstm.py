@@ -110,6 +110,8 @@ def forward_lstm(inputs, lstm_cell, init_state):
       lstm_cell(state, input) -> new_state
     init_state is the initial state of the lstm cell
     state = tf.stack([c, h]), shape: (2, batch_size, state_size)
+    final_state: (seq_length, 2, batch_size, state_size)
+    outputs: (seq_length, batch_size, state_size)
     """
     final_states = tf.scan(lstm_cell, inputs, initializer=init_state)
     _, outputs = tf.unstack(final_states, axis=1)
