@@ -138,53 +138,72 @@ class SRL_Model(object):
         num_roles = vocabs['labels'].size
         lstm_output_size = args.state_size * 4 # (2 LSTMs for word, 2 for pred)
 
-
-        if args.use_basic_classifier:
-            W = tf.get_variable(
-                'Wr',
-                shape=(lstm_output_size, num_roles),
-                initializer=tf.orthogonal_initializer(),
-                dtype=tf.float32)
-            logits = layers.batch_matmul(combined_outputs, W)
-
-        else:
+        with tf.variable_scope('projection'):
+            # Get embedding for labels (roles) and predicates
+            ## (num_roles, r_embed_size)
             role_embeddings = tf.get_variable(
                 'role_embeddings',
                 shape=(num_roles, args.role_embed_size),
                 dtype=tf.float32)
+            ## (batch_size, p_embed_size)
             pred_embeddings = layers.embed_inputs(
                 raw_inputs=preds_placeholder,
                 vocab_size=vocabs['lemmas'].size,
                 embed_size=args.output_lemma_embed_size,
                 name='output_lemma_embedding')
+
+            # Tile the embeddings:
+            # need role_embeddings to be (batch_size, num_roles, r_embed_size)
+            # and pred_embeddings to be (batch_size, num_roles, p_embed_size)
+            # so we can concatenate
+            tiled_role_embeddings = tf.tile(tf.expand_dims(role_embeddings, 0),
+                                            (batch_size, 1, 1))
+            tiled_pred_embeddings = tf.tile(tf.expand_dims(pred_embeddings, 1),
+                                            (1, num_roles, 1))
+            rp_embeddings = tf.concat([tiled_pred_embeddings,
+                                       tiled_role_embeddings], axis=2)
+
+            # Compose embeddings into projection matrix W
+            rp_size = args.role_embed_size + args.output_lemma_embed_size
+            U = tf.get_variable(
+                'U',
+                shape=(rp_size, lstm_output_size),
+                initializer=tf.orthogonal_initializer(),
+                dtype=tf.float32)
+            ## (batch_size, lstm_output_size, num_roles)
+            W = tf.transpose(tf.nn.relu(layers.batch_matmul(rp_embeddings, U)),
+                             perm=[0, 2, 1])
             
-            with tf.variable_scope('projection'):
-                # Multiply roles and frames separately then add the results
-                U_role = tf.get_variable(
-                    'U_role',
-                    shape=(args.role_embed_size, lstm_output_size),
-                    initializer=tf.orthogonal_initializer(),
-                    dtype=tf.float32)
-                U_pred = tf.get_variable(
-                    'U_pred',
-                    shape=(args.output_lemma_embed_size, lstm_output_size),
-                    initializer=tf.orthogonal_initializer(),
-                    dtype=tf.float32)
-                W_role = tf.matmul(role_embeddings, U_role)
-                W_pred = tf.matmul(pred_embeddings, U_pred)
-
-                # Need to generate batch_size W's...
-                W_role_tiled = tf.tile(tf.expand_dims(W_role, 0),
-                                       (batch_size, 1, 1))
-                W_pred_tiled = tf.tile(tf.expand_dims(W_pred, 1),
-                                       (1, num_roles, 1))
-                W = tf.transpose(tf.nn.relu(W_role_tiled + W_pred_tiled),
-                                 perm=[0,2,1])
+            # (batch_size, seq_len, out_size)*(batch_size, out_size, num_roles)
+            # = (batch_size, seq_len, num_roles)
+            logits = tf.matmul(combined_outputs, W)
 
 
-                # (batch_size,seq_len,out_size)*(batch_size,out_size,num_roles)
-                #   = (batch_size,seq_len,num_roles)
-                logits = tf.matmul(combined_outputs, W)
+            
+            # with tf.variable_scope('projection'):
+            #     # Multiply roles and frames separately then add the results
+            #     U_role = tf.get_variable(
+            #         'U_role',
+            #         shape=(args.role_embed_size, lstm_output_size),
+            #         initializer=tf.orthogonal_initializer(),
+            #         dtype=tf.float32)
+            #     U_pred = tf.get_variable(
+            #         'U_pred',
+            #         shape=(args.output_lemma_embed_size, lstm_output_size),
+            #         initializer=tf.orthogonal_initializer(),
+            #         dtype=tf.float32)
+            #     W_role = tf.matmul(role_embeddings, U_role)
+            #     W_pred = tf.matmul(pred_embeddings, U_pred)
+
+            #     # Need to generate batch_size W's...
+            #     W_role_tiled = tf.tile(tf.expand_dims(W_role, 0),
+            #                            (batch_size, 1, 1))
+            #     W_pred_tiled = tf.tile(tf.expand_dims(W_pred, 1),
+            #                            (1, num_roles, 1))
+            #     W = tf.transpose(tf.nn.relu(W_role_tiled + W_pred_tiled),
+            #                      perm=[0,2,1])
+
+
 
             # Mask the roles that can't be assigned (given the predicate)
             # labels_mask_placeholder contains a vocab['labels'].size mask
