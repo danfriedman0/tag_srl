@@ -120,6 +120,7 @@ class CoNLL09_Sent_with_Pred(object):
         self.pos = sent.pos
         self.lemmas = sent.lemmas
         self.stags = sent.stags
+        self.length = len(self.words)
 
         # pred_num < 0 means that this is a dummy object for a sentence
         # with no predicates
