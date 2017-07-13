@@ -142,11 +142,11 @@ class CoNLL09_Sent_with_Pred(object):
             #     self.frame = pred_to_frame['p'][self.pred]
             # else:
             #     self.frame = []
-            self.frame = []
-            # if self.pred in pred_to_frame:
-            #     self.frame = pred_to_frame[self.pred]
-            # else:
-            #     self.frame = []
+
+            if self.pred in pred_to_frame:
+                self.frame = pred_to_frame[self.pred]
+            else:
+                self.frame = []
             
 
             # self.count = 0
@@ -221,11 +221,7 @@ def conll09_generator(f, only_sent=False):
     Generator for reading data in CoNLL format.
     Given a file object, yields CoNLL09_Sent_with_Pred objects.
     """
-    pred_to_frame = {
-        'p': get_pred_to_frame('data/pb_frames.txt'),
-        'n': get_pred_to_frame('data/nb_frames.txt')
-    }
-    # pred_to_frame = get_pred_to_frame()
+    pred_to_frame = get_pred_to_frame()
     
     lines = []
     for line in f:
