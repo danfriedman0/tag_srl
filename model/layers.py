@@ -65,3 +65,30 @@ def batch_matmul(x, W):
     _xW = tf.matmul(_x, W, a_is_sparse=True)
     xW = tf.reshape(_xW, [batch_size, d0, d2])
     return xW
+
+def fully_connected_layer(
+        inputs,
+        output_size,
+        W_init=tf.orthogonal_initializer(),
+        b_init=tf.constant_initializer(0.0),
+        nonlinearity=None,
+        name='fully_connected'):
+    """
+    inputs: (batch_size, d0, d1)
+    """
+    with tf.variable_scope(name):
+        input_size = tf.shape(inputs)[2]
+        W = tf.get_variable(
+            'W',
+            shape=(input_size, output_size),
+            initializer=W_init,
+            dtype=tf.float32)
+        b = tf.get_variable(
+            'b',
+            shape=(output_size,),
+            initializer=b_init,
+            dtype=tf.float32)
+        result = batch_matmul(x, W) + b
+        if nonlinearity is not None:
+            result = nonlinearity(result)
+        return result
