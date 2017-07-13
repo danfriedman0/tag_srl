@@ -68,32 +68,6 @@ class Vocab(object):
         return word in self.word_to_idx
 
 
-def normalize(token):
-    """From Marcheggiani et al"""
-    penn_tokens = {
-        '-LRB-': '(',
-        '-RRB-': ')',
-        '-LSB-': '[',
-        '-RSB-': ']',
-        '-LCB-': '{',
-        '-RCB-': '}' 
-    }
-    if token in penn_tokens:
-        return penn_tokens[token]
-
-    token = token.lower()
-    try:
-        int(token)
-        return "<NUM>"
-    except:
-        pass
-    try:
-        float(token.replace(',', ''))
-        return "<FLOAT>"
-    except:
-        pass
-    return token
-    
     
 def get_vocabs():
     """
@@ -107,6 +81,9 @@ def get_vocabs():
         if vocab_type == 'labels':
             zero = None
             unk = None
+        elif vocab_type == 'lemmas':
+            zero = '_'
+            unk = '<unk>'
         else:
             zero = "<zero>"
             unk = "<unk>"
