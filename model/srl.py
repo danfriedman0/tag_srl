@@ -39,6 +39,7 @@ class SRL_Model(object):
             tf.float32, shape=(batch_size, vocabs['labels'].size))
         stags_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
         use_dropout_placeholder = tf.placeholder(tf.float32, shape=())
+        seq_lengths_placeholder = tf.placeholder(tf.int32, shape=(batch_size,))
 
         # Word representation
 
@@ -110,12 +111,17 @@ class SRL_Model(object):
 
         # BiLSTM
         dropout = 1.0 - (1.0 - args.dropout) * use_dropout_placeholder
-        bilstm, zero_state = lstm.make_stacked_bilstm(
+        if args.use_tf_lstm:
+            make_lstm = lstm.make_stacked_tf_bilstm
+        else:
+            make_lstm = lstm.make_stacked_bilstm
+        bilstm, zero_state = make_lstm(
             input_size=input_size,
             state_size=args.state_size,
             batch_size=args.batch_size,
             num_layers=args.num_layers,
-            dropout=dropout)
+            dropout=dropout,
+            seq_lengths=seq_lengths_placeholder)
 
         lstm_outputs = bilstm(lstm_inputs, zero_state)
         outputs = tf.transpose(lstm_outputs, perm=[1, 0, 2])
@@ -221,20 +227,15 @@ class SRL_Model(object):
         self.labels_mask_placeholder = labels_mask_placeholder
         self.stags_placeholder = stags_placeholder
         self.use_dropout_placeholder = use_dropout_placeholder
+        self.seq_lengths_placeholder = seq_lengths_placeholder
         self.predictions = predictions
         self.loss = loss
         self.train_op = train_op
 
 
-    def run_training_batch(self, session, batch):
-        """
-        A batch contains input tensors for words, pos, lemmas, preds,
-          preds_idx, and labels (in that order)
-        Runs the model on the batch (through train_op if train=True)
-        Returns the loss
-        """
+    def batch_to_feed(self, batch):
         (words, pos, lemmas, preds, preds_idx,
-         labels, labels_mask, stags) = batch
+         labels, labels_mask, stags, seq_lengths) = batch
         feed_dict = {
             self.words_placeholder: words,
             self.pos_placeholder: pos,
@@ -244,8 +245,20 @@ class SRL_Model(object):
             self.labels_placeholder: labels,
             self.labels_mask_placeholder: labels_mask,
             self.stags_placeholder: stags,
-            self.use_dropout_placeholder: 1.0
+            self.seq_lengths_placeholder: seq_lengths
         }
+        return feed_dict
+        
+
+    def run_training_batch(self, session, batch):
+        """
+        A batch contains input tensors for words, pos, lemmas, preds,
+          preds_idx, and labels (in that order)
+        Runs the model on the batch (through train_op if train=True)
+        Returns the loss
+        """
+        feed_dict = self.batch_to_feed(batch)
+        feed_dict[self.use_dropout_placeholder] = 1.0
         fetches = [self.loss, self.train_op]
         loss, _ = session.run(fetches, feed_dict=feed_dict)
         return loss
@@ -258,18 +271,8 @@ class SRL_Model(object):
         Runs the model on the batch (through train_op if train=True)
         Returns loss and also predicted argument labels.
         """
-        (words, pos, lemmas, preds, preds_idx,
-         labels, labels_mask, stags) = batch        
-        feed_dict = {
-            self.words_placeholder: words,
-            self.pos_placeholder: pos,
-            self.lemmas_placeholder: lemmas,
-            self.preds_placeholder: preds,
-            self.preds_idx_placeholder: preds_idx,
-            self.labels_placeholder: labels,
-            self.stags_placeholder: stags,
-            self.use_dropout_placeholder: 0.0
-        }
+        feed_dict = self.batch_to_feed(batch)
+        feed_dict[self.use_dropout_placeholder] = 0.0
         fetches = [self.loss, self.predictions]
         loss, probabilities = session.run(fetches, feed_dict=feed_dict)
         return loss, probabilities

@@ -138,7 +138,8 @@ def make_stacked_bilstm(input_size,
                         state_size,
                         batch_size,
                         num_layers,
-                        dropout):
+                        dropout,
+                        seq_lengths):
     init_cells = [make_lstm_cell(input_size, state_size, batch_size)]
     for _ in xrange(num_layers - 1):
         init_cells.append(
@@ -157,4 +158,30 @@ def make_stacked_bilstm(input_size,
     zero_state = tf.stack(zero_states)
 
     return bilstm_fn, zero_state
-    
+
+
+def make_stacked_tf_bilstm(input_size,
+                           state_size,
+                           batch_size,
+                           num_layers,
+                           dropout,
+                           seq_lengths):
+    cells = [tf.contrib.rnn.LSTMCell(state_size) for _ in xrange(num_layers)]
+    zero_states = [cell.zero_state(batch_size, tf.float32) for cell in cells]
+
+    def bilstm_fn(inputs, zero_states):
+        for i, cell in enumerate(cells):
+            with tf.variable_scope("bilstm_%d" % i) as scope:
+                outputs, _ = tf.nn.bidirectional_dynamic_rnn(
+                    cell_fw=cell,
+                    cell_bw=cell,
+                    inputs=inputs,
+                    dtype=tf.float32,
+                    sequence_length=seq_lengths)
+                outputs = tf.concat(outputs, 2)
+                inputs = tf.nn.dropout(outputs, keep_prob=dropout)
+        return outputs
+
+    return bilstm_fn, zero_states
+                    
+        

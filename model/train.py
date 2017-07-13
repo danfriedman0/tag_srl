@@ -71,6 +71,9 @@ parser.add_argument("--early_stopping",
 parser.add_argument("--seed",
                     help="Random seed for tensorflow and numpy",
                     default=89, type=int)
+parser.add_argument("--use_tf_lstm",
+                    help="Use default tensorflow LSTM implementation",
+                    action="store_true", default=False)
 parser.add_argument("--debug",
                     help="Use a smaller configuration for debuggin",
                     action="store_true", default=False)
@@ -96,6 +99,7 @@ class Debug_Args(object):
         self.use_basic_classifier = False
         self.early_stopping = 3
         self.seed = 87
+        self.use_tf_lstm = True
     
 
 def train(args):
@@ -118,6 +122,8 @@ def train(args):
         model_suffix += '_dr{}'.format(args.dropout)
     if args.use_basic_classifier:
         model_suffix += '_bc'
+    if args.use_tf_lstm:
+        model_suffix += '_tf'
     fn_sys = 'output/predictions/dev{}.txt'.format(model_suffix)
 
     # Prepare for saving the model
