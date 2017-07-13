@@ -98,7 +98,7 @@ class Debug_Args(object):
         self.restrict_labels = True
         self.use_basic_classifier = False
         self.early_stopping = 3
-        self.seed = 87
+        self.seed = 89
         self.use_tf_lstm = True
     
 

@@ -119,7 +119,7 @@ def forward_lstm(inputs, lstm_cell, init_state):
 
 
 def backward_lstm(inputs, lstm_cell, init_state):
-    r_inputs = tf.reverse(inputs, axis=(1,))
+    r_inputs = tf.reverse(inputs, axis=(0,))
     r_outputs = forward_lstm(r_inputs, lstm_cell, init_state)
     outputs = tf.reverse(r_outputs, axis=(0,))
     return outputs
@@ -172,13 +172,23 @@ def make_stacked_tf_bilstm(input_size,
     def bilstm_fn(inputs, zero_states):
         for i, cell in enumerate(cells):
             with tf.variable_scope("bilstm_%d" % i) as scope:
-                outputs, _ = tf.nn.bidirectional_dynamic_rnn(
-                    cell_fw=cell,
-                    cell_bw=cell,
-                    inputs=inputs,
-                    dtype=tf.float32,
-                    sequence_length=seq_lengths)
-                outputs = tf.concat(outputs, 2)
+                with tf.variable_scope("forward"):
+                    output_fw, _ = tf.nn.dynamic_rnn(
+                        cell=cell,
+                        inputs=inputs,
+                        sequence_length=seq_lengths,
+                        dtype=tf.float32,
+                        time_major=True)
+                with tf.variable_scope("backward"):
+                    r_inputs = tf.reverse(inputs, axis=(0,))
+                    r_output_bw, _ = tf.nn.dynamic_rnn(
+                        cell=cell,
+                        inputs=r_inputs,
+                        sequence_length=seq_lengths,
+                        dtype=tf.float32,
+                        time_major=True)
+                    output_bw = tf.reverse(r_output_bw, axis=(0,))
+                outputs = tf.concat([output_fw, output_bw], 2)
                 inputs = tf.nn.dropout(outputs, keep_prob=dropout)
         return outputs
 
