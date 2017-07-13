@@ -6,12 +6,14 @@ from __future__ import division
 import argparse
 import os
 import tensorflow as tf
+import numpy as np
 import cPickle as pickle
 from timeit import default_timer as timer
 
 from model.srl import SRL_Model
 from eval.eval import run_evaluation_script
 from util import vocab
+
 
 parser = argparse.ArgumentParser(
     description="Hyperparameters for training an SRL model")
@@ -66,6 +68,9 @@ parser.add_argument("--use_basic_classifier",
 parser.add_argument("--early_stopping",
                     help="Stop after n epochs of no improvement",
                     default=8, type=int)
+parser.add_argument("--seed",
+                    help="Random seed for tensorflow and numpy",
+                    default=89, type=int)
 parser.add_argument("--debug",
                     help="Use a smaller configuration for debuggin",
                     action="store_true", default=False)
@@ -83,13 +88,14 @@ class Debug_Args(object):
         self.learning_rate = 0.01
         self.role_embed_size = 8
         self.output_lemma_embed_size = 12
-        self.max_epochs = 2
+        self.max_epochs = 10
         self.use_stags = True
         self.stag_embed_size = 16
         self.use_gold_preds = False
         self.restrict_labels = True
-        self.use_basic_classifier = True
+        self.use_basic_classifier = False
         self.early_stopping = 3
+        self.seed = 87
     
 
 def train(args):
@@ -97,7 +103,8 @@ def train(args):
     fn_train = 'data/conll09/{}/train.tag'.format(data_dir)
     fn_valid = 'data/conll09/{}/dev.tag'.format(data_dir)
     fn_gold = 'data/conll09/gold/dev.txt'
-    
+
+    # Come up with a model name based on the hyperparameters
     model_suffix = ''
     if args.restrict_labels:
         model_suffix += '_rl'
@@ -112,60 +119,68 @@ def train(args):
     if args.use_basic_classifier:
         model_suffix += '_bc'
     fn_sys = 'output/predictions/dev{}.txt'.format(model_suffix)
-    
-    vocabs = vocab.get_vocabs()
 
-    print("Building model...")
-    model = SRL_Model(vocabs, args)
-
-    saver = tf.train.Saver(max_to_keep=1)
+    # Prepare for saving the model
     model_dir = 'output/models/srl' + model_suffix + '/'
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
     print('Saving args to', model_dir + 'args.pkl')
     with open(model_dir + 'args.pkl', 'w') as f:
         pickle.dump(args, f)
-    
-    with tf.Session() as session:
-        best_f1 = 0
-        bad_streak = 0
 
-        session.run(tf.global_variables_initializer())
+    vocabs = vocab.get_vocabs()
+
+    with tf.Graph().as_default():
+        tf.set_random_seed(args.seed)
+        np.random.seed(args.seed)
+
+        print("Building model...")        
+        model = SRL_Model(vocabs, args)
+        saver = tf.train.Saver(max_to_keep=1)
         
-        for i in xrange(args.max_epochs):
-            print('-' * 78)
-            print('Epoch {}'.format(i))
-            start = timer()
-            train_loss = model.run_training_epoch(session, vocabs, fn_train)
-            end = timer()
-            print('Done with epoch {}'.format(i))
-            print('Avg loss: {}, total time: {}'.format(train_loss, end-start))
+        with tf.Session() as session:
+            best_f1 = 0
+            bad_streak = 0
 
-            print('-' * 78)
-            print('Validating...')
-            valid_loss = model.run_testing_epoch(session, vocabs,
-                                                 fn_valid, fn_sys)
-            print('Validation loss: {}'.format(valid_loss))
+            session.run(tf.global_variables_initializer())
 
-            print('-' * 78)
-            print('Running evaluation script...')
-            labeled_f1, unlabeled_f1 = run_evaluation_script(fn_gold, fn_sys)
-            print('Labeled F1:    {0:.2f}'.format(labeled_f1))
-            print('Unlabeled F1:  {0:.2f}'.format(unlabeled_f1))
+            for i in xrange(args.max_epochs):
+                print('-' * 78)
+                print('Epoch {}'.format(i))
+                start = timer()
+                train_loss = model.run_training_epoch(
+                    session, vocabs, fn_train)
+                end = timer()
+                print('Done with epoch {}'.format(i))
+                print('Avg loss: {}, total time: {}'.format(
+                    train_loss, end-start))
 
-            if labeled_f1 > best_f1:
-                best_f1 = labeled_f1
-                bad_streak = 0
-                print('Saving model to', model_dir + 'model')
-                saver.save(session, model_dir + 'model', global_step=i)
-            else:
-                print('F1 deteriorated')
-                bad_streak += 1
-                if bad_streak >= args.early_stopping:
-                    print('No F1 improvement for %d epochs, stopping early'
-                          % args.early_stopping)
-                    print('Best F1 score: {0:.2f}'.format(best_f1))
-                    break
+                print('-' * 78)
+                print('Validating...')
+                valid_loss = model.run_testing_epoch(
+                    session, vocabs, fn_valid, fn_sys)
+                print('Validation loss: {}'.format(valid_loss))
+
+                print('-' * 78)
+                print('Running evaluation script...')
+                labeled_f1, unlabeled_f1 = run_evaluation_script(
+                    fn_gold, fn_sys)
+                print('Labeled F1:    {0:.2f}'.format(labeled_f1))
+                print('Unlabeled F1:  {0:.2f}'.format(unlabeled_f1))
+
+                if labeled_f1 > best_f1:
+                    best_f1 = labeled_f1
+                    bad_streak = 0
+                    print('Saving model to', model_dir + 'model')
+                    saver.save(session, model_dir + 'model')
+                else:
+                    print('F1 deteriorated')
+                    bad_streak += 1
+                    if bad_streak >= args.early_stopping:
+                        print('No F1 improvement for %d epochs, stopping early'
+                              % args.early_stopping)
+                        print('Best F1 score: {0:.2f}'.format(best_f1))
+                        break
                 
 
 if __name__ == '__main__':

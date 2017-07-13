@@ -3,7 +3,7 @@
 from __future__ import print_function
 from __future__ import division
 
-import random
+import numpy as np
 from collections import Counter
 
 class Vocab(object):
@@ -56,7 +56,7 @@ class Vocab(object):
             word = self.unk
         if use_dropout and word != self.unk:
             drop_prob = self.alpha / (self.counts[word] + self.alpha)
-            if random.random() < drop_prob:
+            if np.random.random() < drop_prob:
                 word = self.unk
         return self.word_to_idx[word]
 
