@@ -84,7 +84,7 @@ class SRL_Model(object):
                 embed_size=args.stag_embed_size,
                 name='stag_embedding')
             word_features.append(stag_embeddings)
-        
+         
         ## Binary flags to mark the predicate
         seq_length = tf.shape(words_placeholder)[1]
         pred_markers = tf.expand_dims(tf.one_hot(preds_idx_placeholder,
@@ -124,6 +124,8 @@ class SRL_Model(object):
         # Projection
 
         ## Get the output state corresponding to the predicate in each sentence
+        ## outputs is shaped (batch_size, seq_length, output_size)
+        ## so pred_outputs is (batch_size, output_size)
         indices = tf.stack([tf.range(batch_size, dtype=tf.int32),
                             preds_idx_placeholder], axis=1)
         pred_outputs = tf.gather_nd(outputs, indices)
@@ -164,54 +166,34 @@ class SRL_Model(object):
                                        tiled_role_embeddings], axis=2)
 
             # Compose embeddings into projection matrix W
+            # W: (batch_size, lstm_output_size, num_roles)            
             rp_size = args.role_embed_size + args.output_lemma_embed_size
             U = tf.get_variable(
                 'U',
                 shape=(rp_size, lstm_output_size),
                 initializer=tf.orthogonal_initializer(),
                 dtype=tf.float32)
-            ## (batch_size, lstm_output_size, num_roles)
-            W = tf.transpose(tf.nn.relu(layers.batch_matmul(rp_embeddings, U)),
-                             perm=[0, 2, 1])
+            b = tf.get_variable(
+                'b',
+                shape=(lstm_output_size),
+                initializer=tf.constant_initializer(0.0),
+                dtype=tf.float32)
+            activation = tf.nn.relu(layers.batch_matmul(rp_embeddings, U) + b)
+            W = tf.transpose(activation, perm=[0, 2, 1])
             
             # (batch_size, seq_len, out_size)*(batch_size, out_size, num_roles)
             # = (batch_size, seq_len, num_roles)
             logits = tf.matmul(combined_outputs, W)
 
 
-            
-            # with tf.variable_scope('projection'):
-            #     # Multiply roles and frames separately then add the results
-            #     U_role = tf.get_variable(
-            #         'U_role',
-            #         shape=(args.role_embed_size, lstm_output_size),
-            #         initializer=tf.orthogonal_initializer(),
-            #         dtype=tf.float32)
-            #     U_pred = tf.get_variable(
-            #         'U_pred',
-            #         shape=(args.output_lemma_embed_size, lstm_output_size),
-            #         initializer=tf.orthogonal_initializer(),
-            #         dtype=tf.float32)
-            #     W_role = tf.matmul(role_embeddings, U_role)
-            #     W_pred = tf.matmul(pred_embeddings, U_pred)
+        # Mask the roles that can't be assigned (given the predicate)
+        # labels_mask_placeholder: (batch_size, num_roles)
+        # So tile the masks and multiply
+        if args.restrict_labels:
+            masks_tiled = tf.tile(tf.expand_dims(labels_mask_placeholder, 1),
+                                  (1, seq_length, 1))
+            logits = tf.multiply(logits, masks_tiled)
 
-            #     # Need to generate batch_size W's...
-            #     W_role_tiled = tf.tile(tf.expand_dims(W_role, 0),
-            #                            (batch_size, 1, 1))
-            #     W_pred_tiled = tf.tile(tf.expand_dims(W_pred, 1),
-            #                            (1, num_roles, 1))
-            #     W = tf.transpose(tf.nn.relu(W_role_tiled + W_pred_tiled),
-            #                      perm=[0,2,1])
-
-
-
-            # Mask the roles that can't be assigned (given the predicate)
-            # labels_mask_placeholder contains a vocab['labels'].size mask
-            # for each sentence, so tile the masks and multiply elementwise...
-            # masks_tiled = tf.tile(tf.expand_dims(labels_mask_placeholder, 1),
-            #                       (1, seq_length, 1))
-            # masked_logits = tf.multiply(logits, masks_tiled)
-            # predictions = tf.nn.softmax(masked_logits)
         predictions = tf.nn.softmax(logits)
 
 
@@ -251,7 +233,8 @@ class SRL_Model(object):
         Runs the model on the batch (through train_op if train=True)
         Returns the loss
         """
-        words, pos, lemmas, preds, preds_idx, labels, stags = batch
+        (words, pos, lemmas, preds, preds_idx,
+         labels, labels_mask, stags) = batch
         feed_dict = {
             self.words_placeholder: words,
             self.pos_placeholder: pos,
@@ -259,6 +242,7 @@ class SRL_Model(object):
             self.preds_placeholder: preds,
             self.preds_idx_placeholder: preds_idx,
             self.labels_placeholder: labels,
+            self.labels_mask_placeholder: labels_mask,
             self.stags_placeholder: stags,
             self.use_dropout_placeholder: 1.0
         }
@@ -274,7 +258,8 @@ class SRL_Model(object):
         Runs the model on the batch (through train_op if train=True)
         Returns loss and also predicted argument labels.
         """
-        words, pos, lemmas, preds, preds_idx, labels, stags = batch
+        (words, pos, lemmas, preds, preds_idx,
+         labels, labels_mask, stags) = batch        
         feed_dict = {
             self.words_placeholder: words,
             self.pos_placeholder: pos,

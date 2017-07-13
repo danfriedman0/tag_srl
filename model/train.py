@@ -63,6 +63,9 @@ parser.add_argument("--stag_embed_size",
 parser.add_argument("--use_basic_classifier",
                     help="Use the basic role classifier",
                     action="store_true", default=False)
+parser.add_argument("--early_stopping",
+                    help="Stop after n epochs of no improvement",
+                    default=8, type=int)
 parser.add_argument("--debug",
                     help="Use a smaller configuration for debuggin",
                     action="store_true", default=False)
@@ -74,7 +77,7 @@ class Debug_Args(object):
         self.pos_embed_size = 4
         self.lemma_embed_size = 8
         self.state_size = 32
-        self.batch_size = 50
+        self.batch_size = 10
         self.num_layers = 2
         self.dropout = 0.7
         self.learning_rate = 0.01
@@ -86,6 +89,7 @@ class Debug_Args(object):
         self.use_gold_preds = False
         self.restrict_labels = True
         self.use_basic_classifier = True
+        self.early_stopping = 3
     
 
 def train(args):
@@ -157,11 +161,12 @@ def train(args):
             else:
                 print('F1 deteriorated')
                 bad_streak += 1
-                if bad_streak >= 3:
-                    print('No F1 improvement for 3 epochs, stopping early')
+                if bad_streak >= args.early_stopping:
+                    print('No F1 improvement for %d epochs, stopping early'
+                          % args.early_stopping)
                     print('Best F1 score: {0:.2f}'.format(best_f1))
                     break
-            
+                
 
 if __name__ == '__main__':
     args = parser.parse_args()

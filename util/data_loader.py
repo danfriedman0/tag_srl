@@ -41,13 +41,15 @@ def make_batch_field_single(sents, field, vocab=None):
             
 def make_batch(sents, vocabs, train):
     """
-    A batch contains six things:
+    A batch contains seven things:
       words_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
       pos_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
       lemmas_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
       preds_placeholder = tf.placeholder(tf.int32, shape=(batch_size,))
       preds_idx_placeholder = tf.placeholder(tf.int32, shape=(batch_size,))
       labels_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
+      labels_mask_placeholder = tf.placeholder(
+        tf.float32, shape=(batch_size, vocabs['labels'].size))    
       stags_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
     in that order.
     There is one predicate for each sentence.
@@ -67,10 +69,10 @@ def make_batch(sents, vocabs, train):
     preds_idx = make_batch_field_single(sents, 'pred_idx')
     labels = make_batch_field_sequence(sents, 'labels',
                                        seq_length, vocabs['labels'])
+    labels_mask = make_batch_labels_masks(sents, vocabs['labels'])    
     stags = make_batch_field_sequence(sents, 'stags',
                                       seq_length, vocabs['stags'])
-    # labels_mask = make_batch_labels_masks(sents, vocabs['labels'])
-    return words, pos, lemmas, preds, preds_idx, labels, stags
+    return words, pos, lemmas, preds, preds_idx, labels, labels_mask, stags
 
     
 def batch_producer(batch_size, vocabs, fn, train=True):
