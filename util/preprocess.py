@@ -8,7 +8,6 @@ import xml.etree.ElementTree as ET
 
 from collections import Counter
 from util.data_loader import conll09_generator
-from util.vocab import normalize
 
 
 def get_vocab_counts(vocab_type):
@@ -75,24 +74,27 @@ def get_rolesets(fn):
     try:
         tree = ET.parse(fn)
     except:
-        print(fn)
         return []
     root = tree.getroot()
-    rolesets = []    
+    d = {}
     for pred in root.iter('predicate'):
         for roleset in pred.iter('roleset'):
-            role_id = roleset.attrib['id']
-            line = [role_id]
+            lemma = roleset.attrib['id'].split('.')[0]
+            if lemma not in d:
+                d[lemma] = set()
             for role in roleset.iter('role'):
                 n = role.attrib['n']
-                line.append('A' + n)
-                line.append('R-A' + n)
-                line.append('C-A' + n)
-            rolesets.append(line)
+                d[lemma].add('A' + n)
+                d[lemma].add('R-A' + n)
+                d[lemma].add('C-A' + n)
+    rolesets = []
+    for lemma, roles in d.iteritems():
+        rolesets.append([lemma] + list(roles))
     return rolesets
     
 
 def make_frame_file(frame_type):
+    """frame_type should be 'p' for propbank or 'n' for nombank"""
     modifs = 'AM-LOC AM-DIR AM-MNR AM-EXT AM-REC AM-CAU AM-DIS AM-ADV AM-PNC AM-MOD AM-NEG AM-SLC AM-TMP AM-PRT AM-PRD R-AM-PNC R-AM-EXT R-AM-MNR R-AM-LOC R-AM-ADV R-AM-DIR R-AM-TMP R-AM-CAU C-R-AM-TMP C-AM-ADV C-AM-TMP C-AM-EXT C-AM-NEG C-AM-PNC C-AM-DIR C-AM-LOC C-AM-MNR C-AM-CAU C-AM-DIS'
     root_dir = '/Users/danfriedman/resources/CoNLL2009/LDC2012T04-CoNLL2009-Shared-Task-Part2/data/CoNLL2009-ST-English/{}b_frames/'.format(frame_type)
     frame_files = os.listdir(root_dir)
@@ -114,16 +116,14 @@ def make_frame_file(frame_type):
                 sys.stdout.flush()
 
 
-def get_preds_and_stags(fn):
-    pred_sents = []
+def get_stags(fn):
     stag_sents = []
     with open(fn, 'r') as f:
         for sent in conll09_generator(f, only_sent=True):
-            pred_sents.append(sent.preds)
             stag_sents.append(sent.stags)
-    return pred_sents, stag_sents
+    return stag_sents
 
-def add_preds_and_stags(fn_in, fn_out, pred_sents, stag_sents):
+def add_stags(fn_in, fn_out, stag_sents):
     f_out = open(fn_out, 'w')
     sent_idx = 0
     line_idx = 0
@@ -135,7 +135,6 @@ def add_preds_and_stags(fn_in, fn_out, pred_sents, stag_sents):
                 f_out.write('\n')
                 continue
             parts = line.strip().split('\t')
-            parts[13] = pred_sents[sent_idx][line_idx]
             parts.append(stag_sents[sent_idx][line_idx])
             f_out.write('\t'.join(parts) + '\n')
             line_idx += 1
@@ -147,17 +146,16 @@ if __name__ == '__main__':
     # for vocab_type in vocab_types:
     #     preprocess_vocab(vocab_type)
 
-    preprocess_vocab('words')
-    
-    # fns = ['train', 'dev', 'test', 'ood']
-    # for fn in fns:
-    #     print(fn + ':')
+    fns = ['train', 'dev', 'test', 'ood']
+    for fn in fns:
+        print(fn + ':')
         
-    #     print('Getting preds and stags...')        
-    #     fn_pred = 'data/conll09/pred/{}.tag'.format(fn)
-    #     pred_sents, stag_sents = get_preds_and_stags(fn_pred)
+        print('Getting stags...')        
+        fn_pred = 'data/conll09/pred/{}.tag'.format(fn)
+        stag_sents = get_stags(fn_pred)
 
-    #     print('Writing to file...')
-    #     fn_in = 'data/conll09/gold/{}.txt'.format(fn)
-    #     fn_out = 'data/conll09/pred/{}_fixed.tag'.format(fn)
-    #     add_preds_and_stags(fn_in, fn_out, pred_sents, stag_sents)
+        print('Writing to file...')
+        fn_in = 'data/conll09/gold/{}.txt'.format(fn)
+        fn_out = 'data/conll09/gold/{}.tag'.format(fn)
+        add_stags(fn_in, fn_out, stag_sents)
+    
