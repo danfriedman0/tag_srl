@@ -27,9 +27,11 @@ class Vocab(object):
         self.counts = {w: int(c) for w, c in counts}
 
         if self.zero is not None:
-            self.idx_to_word = {i: w for i, (w, _) in
-                                enumerate(counts, start=1)}
+            self.idx_to_word = {}
             self.idx_to_word[0] = self.zero
+            for w, _ in counts:
+                if w != self.zero:
+                    self.idx_to_word[len(self.idx_to_word)] = w
         else:
             self.idx_to_word = {i: w for i, (w, _) in
                                 enumerate(counts, start=0)}
