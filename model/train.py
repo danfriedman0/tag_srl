@@ -53,9 +53,14 @@ parser.add_argument("--max_epochs",
 parser.add_argument("--restrict_labels",
                     help="Only allow labels from a predicate's frame",
                     action="store_true", default=False)
-parser.add_argument("--use_gold_preds",
-                    help="Use gold predicates instead of predicted",
-                    action="store_true", default=False)
+parser.add_argument("--training_split",
+                    help="Train on gold or predicted predicates",
+                    choices=['gold', 'pred'],
+                    default='pred')
+parser.add_argument("--testing_split",
+                    help="Test on gold or predicted predicates",
+                    choices=['gold', 'pred'],
+                    default='pred')
 parser.add_argument("--use_stags",
                     help="Use UD supertags in the word representation",
                     action="store_true", default=False)
@@ -103,19 +108,14 @@ class Debug_Args(object):
     
 
 def train(args):
-    data_dir = 'gold' if args.use_gold_preds else 'pred'
-    fn_train = 'data/conll09/{}/train.tag'.format(data_dir)
-    fn_valid = 'data/conll09/{}/dev.tag'.format(data_dir)
+    fn_train = 'data/conll09/{}/train.tag'.format(args.training_split)
+    fn_valid = 'data/conll09/{}/dev.tag'.format(args.testing_split)
     fn_gold = 'data/conll09/gold/dev.txt'
 
     # Come up with a model name based on the hyperparameters
-    model_suffix = ''
+    model_suffix = '_' + args.training_split + '_' + args.testing_split
     if args.restrict_labels:
         model_suffix += '_rl'
-    if args.use_gold_preds:
-        model_suffix += '_gp'
-    else:
-        model_suffix += '_pp'
     if args.use_stags:
         model_suffix += '_st'
     if args.dropout < 1.0:
