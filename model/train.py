@@ -95,11 +95,11 @@ class Debug_Args(object):
         self.use_stags = True
         self.stag_embed_size = 16
         self.use_gold_preds = False
-        self.restrict_labels = True
+        self.restrict_labels = False
         self.use_basic_classifier = False
         self.early_stopping = 3
         self.seed = 89
-        self.use_tf_lstm = True
+        self.use_tf_lstm = False
     
 
 def train(args):
