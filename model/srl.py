@@ -10,7 +10,8 @@ import tensorflow as tf
 
 from model import layers, lstm
 from util.data_loader import batch_producer
-
+from tensorflow.python.client import timeline
+from timeit import default_timer as timer
 
 class SRL_Model(object):
     def __init__(self, vocabs, args):
@@ -160,32 +161,62 @@ class SRL_Model(object):
                 embed_size=args.output_lemma_embed_size,
                 name='output_lemma_embedding')
 
-            # Tile the embeddings:
-            # need role_embeddings to be (batch_size, num_roles, r_embed_size)
-            # and pred_embeddings to be (batch_size, num_roles, p_embed_size)
-            # so we can concatenate
-            tiled_role_embeddings = tf.tile(tf.expand_dims(role_embeddings, 0),
-                                            (batch_size, 1, 1))
-            tiled_pred_embeddings = tf.tile(tf.expand_dims(pred_embeddings, 1),
-                                            (1, num_roles, 1))
-            rp_embeddings = tf.concat([tiled_pred_embeddings,
-                                       tiled_role_embeddings], axis=2)
-
-            # Compose embeddings into projection matrix W
-            # W: (batch_size, lstm_output_size, num_roles)            
-            rp_size = args.role_embed_size + args.output_lemma_embed_size
-            U = tf.get_variable(
-                'U',
-                shape=(rp_size, lstm_output_size),
+            ## Need to compute U[pred_embeddings; role_embeddings] for
+            ## every pair of predicate and role, but it's faster to do
+            ## the multiplications separately and then add the results
+            Up = tf.get_variable(
+                'Up',
+                shape=(args.output_lemma_embed_size, lstm_output_size),
                 initializer=tf.orthogonal_initializer(),
                 dtype=tf.float32)
+            Wp = tf.matmul(pred_embeddings, Up)
+
+            Ur = tf.get_variable(
+                'Ur',
+                shape=(args.role_embed_size, lstm_output_size),
+                initializer=tf.orthogonal_initializer(),
+                dtype=tf.float32)
+            Wr = tf.matmul(role_embeddings, Ur)
+
+            ## Tile the results so that we can add them, plus a bias term
+            ## W: (batch_size,  lstm_output_size, num_roles)
+            Wp_tiled = tf.tile(tf.expand_dims(Wp, 1), (1, num_roles, 1))
+            Wr_tiled = tf.tile(tf.expand_dims(Wr, 0), (batch_size, 1, 1))
             b = tf.get_variable(
                 'b',
-                shape=(lstm_output_size),
+                shape=(lstm_output_size,),
                 initializer=tf.constant_initializer(0.0),
                 dtype=tf.float32)
-            activation = tf.nn.relu(layers.batch_matmul(rp_embeddings, U) + b)
-            W = tf.transpose(activation, perm=[0, 2, 1])
+            W = tf.transpose(tf.nn.relu(Wp_tiled + Wr_tiled + b),
+                             perm=[0,2,1])
+            
+
+            # # Tile the embeddings:
+            # # need role_embeddings to be (batch_size, num_roles, r_embed_size)
+            # # and pred_embeddings to be (batch_size, num_roles, p_embed_size)
+            # # so we can concatenate
+            # tiled_role_embeddings = tf.tile(tf.expand_dims(role_embeddings, 0),
+            #                                 (batch_size, 1, 1))
+            # tiled_pred_embeddings = tf.tile(tf.expand_dims(pred_embeddings, 1),
+            #                                 (1, num_roles, 1))
+            # rp_embeddings = tf.concat([tiled_pred_embeddings,
+            #                            tiled_role_embeddings], axis=2)
+
+            # # Compose embeddings into projection matrix W
+            # # W: (batch_size, lstm_output_size, num_roles)            
+            # rp_size = args.role_embed_size + args.output_lemma_embed_size
+            # U = tf.get_variable(
+            #     'U',
+            #     shape=(rp_size, lstm_output_size),
+            #     initializer=tf.orthogonal_initializer(),
+            #     dtype=tf.float32)
+            # b = tf.get_variable(
+            #     'b',
+            #     shape=(lstm_output_size),
+            #     initializer=tf.constant_initializer(0.0),
+            #     dtype=tf.float32)
+            # activation = tf.nn.relu(layers.batch_matmul(rp_embeddings, U) + b)
+            # W = tf.transpose(activation, perm=[0, 2, 1])
             
             # (batch_size, seq_len, out_size)*(batch_size, out_size, num_roles)
             # = (batch_size, seq_len, num_roles)
@@ -231,6 +262,9 @@ class SRL_Model(object):
         self.predictions = predictions
         self.loss = loss
         self.train_op = train_op
+
+        self.train_batches = '???'
+        self.test_batches = '???'
 
 
     def batch_to_feed(self, batch):
@@ -282,8 +316,9 @@ class SRL_Model(object):
         batch_size = self.args.batch_size
         total_loss = 0
         num_batches = 0
-        total_batches = sum(1 for _ in batch_producer(batch_size, vocabs, fn))
-
+        #total_batches = sum(1 for _ in batch_producer(batch_size, vocabs, fn))
+        total_batches = self.train_batches
+        
         for i, (_, batch) in enumerate(
                 batch_producer(batch_size, vocabs, fn, train=True)):
             loss = self.run_training_batch(session, batch)
@@ -295,7 +330,8 @@ class SRL_Model(object):
                 sys.stdout.write(msg)
                 sys.stdout.flush()
         print('\n')
-                
+        self.train_batches = num_batches
+
         return total_loss / num_batches
 
 
@@ -303,7 +339,8 @@ class SRL_Model(object):
         batch_size = self.args.batch_size
         total_loss = 0
         num_batches = 0
-        total_batches = sum(1 for _ in batch_producer(batch_size, vocabs, fn))
+        #total_batches = sum(1 for _ in batch_producer(batch_size, vocabs, fn))
+        total_batches = self.test_batches
 
         predicted_sents = []
         for i, (sents, batch) in enumerate(
@@ -327,6 +364,7 @@ class SRL_Model(object):
                 sys.stdout.write(msg)
                 sys.stdout.flush()
         print('\n')
+        self.test_batches = num_batches
 
         # Write the predictions to a file for evaluation
         with open(fn_sys, 'w') as f:

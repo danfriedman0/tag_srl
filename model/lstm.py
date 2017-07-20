@@ -172,24 +172,31 @@ def make_stacked_tf_bilstm(input_size,
     def bilstm_fn(inputs, zero_states):
         for i, cell in enumerate(cells):
             with tf.variable_scope("bilstm_%d" % i) as scope:
-                with tf.variable_scope("forward"):
-                    output_fw, _ = tf.nn.dynamic_rnn(
-                        cell=cell,
-                        inputs=inputs,
-                        sequence_length=seq_lengths,
-                        dtype=tf.float32,
-                        time_major=True)
-                with tf.variable_scope("backward"):
-                    r_inputs = tf.reverse(inputs, axis=(0,))
-                    r_output_bw, _ = tf.nn.dynamic_rnn(
-                        cell=cell,
-                        inputs=r_inputs,
-                        sequence_length=seq_lengths,
-                        dtype=tf.float32,
-                        time_major=True)
-                    output_bw = tf.reverse(r_output_bw, axis=(0,))
-                outputs = tf.concat([output_fw, output_bw], 2)
+                output, _ = tf.nn.bidirectional_dynamic_rnn(
+                    cell_fw=cell,
+                    cell_bw=cell,
+                    inputs=inputs,
+                    dtype=tf.float32,
+                    time_major=True,
+                    sequence_length=seq_lengths)
+                outputs = tf.concat(output, 2)
                 inputs = tf.nn.dropout(outputs, keep_prob=dropout)
+                # with tf.variable_scope("forward"):
+                #     output_fw, _ = tf.nn.dynamic_rnn(
+                #         cell=cell,
+                #         inputs=inputs,
+                #         dtype=tf.float32,
+                #         time_major=True)
+                # with tf.variable_scope("backward"):
+                #     r_inputs = tf.reverse(inputs, axis=(0,))
+                #     r_output_bw, _ = tf.nn.dynamic_rnn(
+                #         cell=cell,
+                #         inputs=r_inputs,
+                #         dtype=tf.float32,
+                #         time_major=True)
+                #     output_bw = tf.reverse(r_output_bw, axis=(0,))
+                # outputs = tf.concat([output_fw, output_bw], 2)
+                # inputs = tf.nn.dropout(outputs, keep_prob=dropout)
         return outputs
 
     return bilstm_fn, zero_states
