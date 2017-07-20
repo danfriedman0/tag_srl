@@ -144,10 +144,11 @@ class SRL_Model(object):
 
         ## Compose role and (output) pred embeddings to get projection weights
         ## (see section 2.4.3 of Marcheggiani et al 2017)
-        num_roles = vocabs['labels'].size
-        lstm_output_size = args.state_size * 4 # (2 LSTMs for word, 2 for pred)
-
         with tf.variable_scope('projection'):
+            # (2 LSTMs for word, 2 for pred)
+            lstm_output_size = args.state_size * 4            
+            num_roles = vocabs['labels'].size
+            
             # Get embedding for labels (roles) and predicates
             ## (num_roles, r_embed_size)
             role_embeddings = tf.get_variable(
@@ -190,49 +191,20 @@ class SRL_Model(object):
             W = tf.transpose(tf.nn.relu(Wp_tiled + Wr_tiled + b),
                              perm=[0,2,1])
             
-
-            # # Tile the embeddings:
-            # # need role_embeddings to be (batch_size, num_roles, r_embed_size)
-            # # and pred_embeddings to be (batch_size, num_roles, p_embed_size)
-            # # so we can concatenate
-            # tiled_role_embeddings = tf.tile(tf.expand_dims(role_embeddings, 0),
-            #                                 (batch_size, 1, 1))
-            # tiled_pred_embeddings = tf.tile(tf.expand_dims(pred_embeddings, 1),
-            #                                 (1, num_roles, 1))
-            # rp_embeddings = tf.concat([tiled_pred_embeddings,
-            #                            tiled_role_embeddings], axis=2)
-
-            # # Compose embeddings into projection matrix W
-            # # W: (batch_size, lstm_output_size, num_roles)            
-            # rp_size = args.role_embed_size + args.output_lemma_embed_size
-            # U = tf.get_variable(
-            #     'U',
-            #     shape=(rp_size, lstm_output_size),
-            #     initializer=tf.orthogonal_initializer(),
-            #     dtype=tf.float32)
-            # b = tf.get_variable(
-            #     'b',
-            #     shape=(lstm_output_size),
-            #     initializer=tf.constant_initializer(0.0),
-            #     dtype=tf.float32)
-            # activation = tf.nn.relu(layers.batch_matmul(rp_embeddings, U) + b)
-            # W = tf.transpose(activation, perm=[0, 2, 1])
-            
             # (batch_size, seq_len, out_size)*(batch_size, out_size, num_roles)
             # = (batch_size, seq_len, num_roles)
             logits = tf.matmul(combined_outputs, W)
 
+            # Mask the roles that can't be assigned (given the predicate)
+            # labels_mask_placeholder: (batch_size, num_roles)
+            # So tile the masks and multiply
+            if args.restrict_labels:
+                masks = tf.tile(tf.expand_dims(labels_mask_placeholder, 1),
+                                (1, seq_length, 1))
+                logits = tf.multiply(logits, masks)
 
-        # Mask the roles that can't be assigned (given the predicate)
-        # labels_mask_placeholder: (batch_size, num_roles)
-        # So tile the masks and multiply
-        if args.restrict_labels:
-            masks_tiled = tf.tile(tf.expand_dims(labels_mask_placeholder, 1),
-                                  (1, seq_length, 1))
-            logits = tf.multiply(logits, masks_tiled)
-
-        predictions = tf.nn.softmax(logits)
-
+            predictions = tf.nn.softmax(logits)
+                
 
         # Loss op and optimizer
         cross_ent = tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -263,8 +235,8 @@ class SRL_Model(object):
         self.loss = loss
         self.train_op = train_op
 
-        self.train_batches = '???'
-        self.test_batches = '???'
+        self.training_batches = None
+        self.testing_batches = None
 
 
     def batch_to_feed(self, batch):
@@ -316,11 +288,16 @@ class SRL_Model(object):
         batch_size = self.args.batch_size
         total_loss = 0
         num_batches = 0
-        #total_batches = sum(1 for _ in batch_producer(batch_size, vocabs, fn))
-        total_batches = self.train_batches
+
+        if self.training_batches is None:
+            print('Loading training batches...')
+            self.training_batches = [batch for batch in batch_producer(
+                batch_size, vocabs, fn, train=True)]
+            print('Loaded {} training batches'.format(
+                len(self.training_batches)))
+        total_batches = len(self.training_batches)
         
-        for i, (_, batch) in enumerate(
-                batch_producer(batch_size, vocabs, fn, train=True)):
+        for i, (_, batch) in enumerate(self.training_batches):
             loss = self.run_training_batch(session, batch)
             total_loss += loss
             num_batches += 1
@@ -330,7 +307,6 @@ class SRL_Model(object):
                 sys.stdout.write(msg)
                 sys.stdout.flush()
         print('\n')
-        self.train_batches = num_batches
 
         return total_loss / num_batches
 
@@ -339,12 +315,17 @@ class SRL_Model(object):
         batch_size = self.args.batch_size
         total_loss = 0
         num_batches = 0
-        #total_batches = sum(1 for _ in batch_producer(batch_size, vocabs, fn))
-        total_batches = self.test_batches
 
+        if self.testing_batches is None:
+            print('Loading testing batches...')
+            self.testing_batches = [batch for batch in batch_producer(
+                batch_size, vocabs, fn, train=False)]
+            print('Loaded {} testing batches.'.format(
+                len(self.testing_batches)))
+        total_batches = len(self.testing_batches)
+        
         predicted_sents = []
-        for i, (sents, batch) in enumerate(
-                batch_producer(batch_size, vocabs, fn, train=False)):
+        for i, (sents, batch) in enumerate(self.testing_batches):
             batch_loss, probabilities = self.run_testing_batch(session, batch)
             total_loss += batch_loss
             num_batches += 1
