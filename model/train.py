@@ -80,7 +80,7 @@ parser.add_argument("--use_tf_lstm",
                     help="Use default tensorflow LSTM implementation",
                     action="store_true", default=False)
 parser.add_argument("--debug",
-                    help="Use a smaller configuration for debuggin",
+                    help="Use a smaller configuration for debugging",
                     action="store_true", default=False)
 
 

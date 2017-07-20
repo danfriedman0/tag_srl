@@ -59,7 +59,8 @@ class SRL_Model(object):
             raw_inputs=words_placeholder,
             vocab_size=vocabs['words'].size,
             embed_size=pretr_embed_size,
-            name='pretr_word_embedding')
+            name='pretr_word_embedding',
+            embeddings=pretr_word_vectors)
 
         ## POS embeddings
         pos_embeddings = layers.embed_inputs(
