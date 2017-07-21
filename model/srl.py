@@ -99,10 +99,6 @@ class SRL_Model(object):
         ## Concatenate all the word features on the last dimension
         inputs = tf.concat(word_features, axis=2)
 
-        ## (num_steps, batch_size, embed_size)
-        ## num_steps has to be first because LSTM scans over the 1st dimension
-        lstm_inputs = tf.transpose(inputs, perm=[1,0,2])
-
         input_size = (args.word_embed_size +
                       pretr_embed_size +
                       args.pos_embed_size +
@@ -112,11 +108,20 @@ class SRL_Model(object):
         
 
         # BiLSTM
+
+        ## (num_steps, batch_size, embed_size)
+        ## num_steps has to be first because LSTM scans over the 1st dimension
+        lstm_inputs = tf.transpose(inputs, perm=[1,0,2])
+
+        ## use_dropout_placeholder is 0 or 1, so this just turns dropout
+        ## on or off
         dropout = 1.0 - (1.0 - args.dropout) * use_dropout_placeholder
+        
         if args.use_tf_lstm:
             make_lstm = lstm.make_stacked_tf_bilstm
         else:
             make_lstm = lstm.make_stacked_bilstm
+
         bilstm, zero_state = make_lstm(
             input_size=input_size,
             state_size=args.state_size,
@@ -124,8 +129,10 @@ class SRL_Model(object):
             num_layers=args.num_layers,
             dropout=dropout,
             seq_lengths=seq_lengths_placeholder)
-
+        
         lstm_outputs = bilstm(lstm_inputs, zero_state)
+
+        ## Transpose back to (batch_size, num_steps, embed_size)
         outputs = tf.transpose(lstm_outputs, perm=[1, 0, 2])
 
 
@@ -138,19 +145,24 @@ class SRL_Model(object):
                             preds_idx_placeholder], axis=1)
         pred_outputs = tf.gather_nd(outputs, indices)
 
-        ## Concatenate predicate state with all the other output states
+        ## Concatenate predicate state with all the other output states.
+        ## (It is possible to do this more efficiently without tiling but
+        ## it would be pretty complicated.)
         tiled_pred_outputs = tf.tile(tf.expand_dims(pred_outputs, 1),
                                      (1, seq_length, 1))
         combined_outputs = tf.concat([outputs, tiled_pred_outputs], axis=2)
 
+        ## (2 LSTMs for word, 2 for pred)
+        lstm_output_size = args.state_size * 4            
+        
+
         ## Compose role and (output) pred embeddings to get projection weights
         ## (see section 2.4.3 of Marcheggiani et al 2017)
         with tf.variable_scope('projection'):
-            # (2 LSTMs for word, 2 for pred)
-            lstm_output_size = args.state_size * 4            
-            num_roles = vocabs['labels'].size
             
             # Get embedding for labels (roles) and predicates
+            num_roles = vocabs['labels'].size
+            
             ## (num_roles, r_embed_size)
             role_embeddings = tf.get_variable(
                 'role_embeddings',
@@ -196,9 +208,9 @@ class SRL_Model(object):
             # = (batch_size, seq_len, num_roles)
             logits = tf.matmul(combined_outputs, W)
 
-            # Mask the roles that can't be assigned (given the predicate)
-            # labels_mask_placeholder: (batch_size, num_roles)
-            # So tile the masks and multiply
+            # Mask the roles that can't be assigned (given the predicate).
+            # labels_mask_placeholder is shaped (batch_size, num_roles),
+            # so tile the masks and multiply elementwise.
             if args.restrict_labels:
                 masks = tf.tile(tf.expand_dims(labels_mask_placeholder, 1),
                                 (1, seq_length, 1))

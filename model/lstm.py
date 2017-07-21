@@ -39,7 +39,7 @@ def make_lstm_cell(input_size, state_size, batch_size):
 
         c_prev, h_prev = tf.unstack(state)
 
-        # Do all the linear combinations in one batch then split
+        # Do all the linear combinations in one batch and then split
         x_sum = tf.matmul(x, Wx)
         h_sum = tf.matmul(h_prev, Wh)
         all_sums = x_sum + h_sum + b
@@ -112,16 +112,10 @@ def forward_lstm(inputs, lstm_cell, init_state):
     state = tf.stack([c, h]), shape: (2, batch_size, state_size)
     final_state: (seq_length, 2, batch_size, state_size)
     outputs: (seq_length, batch_size, state_size)
+    Only returns the outputs (the 'h' part of the state)
     """
     final_states = tf.scan(lstm_cell, inputs, initializer=init_state)
     _, outputs = tf.unstack(final_states, axis=1)
-    return outputs
-
-
-def backward_lstm(inputs, lstm_cell, init_state):
-    r_inputs = tf.reverse(inputs, axis=(0,))
-    r_outputs = forward_lstm(r_inputs, lstm_cell, init_state)
-    outputs = tf.reverse(r_outputs, axis=(0,))
     return outputs
 
 
@@ -129,7 +123,9 @@ def bilstm(inputs, lstm_cell, init_state):
     with tf.variable_scope('forward'):
         f_outputs = forward_lstm(inputs, lstm_cell, init_state)
     with tf.variable_scope('backward'):
-        b_outputs = backward_lstm(inputs, lstm_cell, init_state)
+        r_inputs = tf.reverse(inputs, axis=(0,))
+        rb_outputs = forward_lstm(r_inputs, lstm_cell, init_state)
+        b_outputs = tf.reverse(rb_outputs, axis=(0,))
     outputs = tf.concat([f_outputs, b_outputs], axis=2)
     return outputs
 
@@ -149,11 +145,12 @@ def make_stacked_bilstm(input_size,
 
     def bilstm_fn(inputs, init_state):
         init_states = tf.unstack(init_state)
+        next_inputs = inputs
         for i, cell in enumerate(cells):
             with tf.variable_scope("bilstm_%d" % i) as scope:
-                outputs = bilstm(inputs, cell, init_states[i])
-                inputs = tf.nn.dropout(outputs, keep_prob=dropout)
-        return outputs
+                outputs = bilstm(next_inputs, cell, init_states[i])
+                next_inputs = tf.nn.dropout(outputs, keep_prob=dropout)
+        return next_inputs
 
     zero_state = tf.stack(zero_states)
 
@@ -170,34 +167,19 @@ def make_stacked_tf_bilstm(input_size,
     zero_states = [cell.zero_state(batch_size, tf.float32) for cell in cells]
 
     def bilstm_fn(inputs, zero_states):
+        next_inputs = inputs
         for i, cell in enumerate(cells):
             with tf.variable_scope("bilstm_%d" % i) as scope:
                 output, _ = tf.nn.bidirectional_dynamic_rnn(
                     cell_fw=cell,
                     cell_bw=cell,
-                    inputs=inputs,
+                    inputs=next_inputs,
                     dtype=tf.float32,
                     time_major=True,
                     sequence_length=seq_lengths)
                 outputs = tf.concat(output, 2)
-                inputs = tf.nn.dropout(outputs, keep_prob=dropout)
-                # with tf.variable_scope("forward"):
-                #     output_fw, _ = tf.nn.dynamic_rnn(
-                #         cell=cell,
-                #         inputs=inputs,
-                #         dtype=tf.float32,
-                #         time_major=True)
-                # with tf.variable_scope("backward"):
-                #     r_inputs = tf.reverse(inputs, axis=(0,))
-                #     r_output_bw, _ = tf.nn.dynamic_rnn(
-                #         cell=cell,
-                #         inputs=r_inputs,
-                #         dtype=tf.float32,
-                #         time_major=True)
-                #     output_bw = tf.reverse(r_output_bw, axis=(0,))
-                # outputs = tf.concat([output_fw, output_bw], 2)
-                # inputs = tf.nn.dropout(outputs, keep_prob=dropout)
-        return outputs
+                next_inputs = tf.nn.dropout(outputs, keep_prob=dropout)
+        return next_inputs
 
     return bilstm_fn, zero_states
                     

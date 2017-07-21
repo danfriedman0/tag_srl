@@ -56,7 +56,7 @@ parser.add_argument("--restrict_labels",
 parser.add_argument("--training_split",
                     help="Train on gold or predicted predicates",
                     choices=['gold', 'pred'],
-                    default='pred')
+                    default='gold')
 parser.add_argument("--testing_split",
                     help="Test on gold or predicted predicates",
                     choices=['gold', 'pred'],
@@ -105,6 +105,8 @@ class Debug_Args(object):
         self.early_stopping = 3
         self.seed = 89
         self.use_tf_lstm = False
+        self.training_split = 'gold'
+        self.testing_split = 'pred'
     
 
 def train(args):
@@ -113,7 +115,9 @@ def train(args):
     fn_gold = 'data/conll09/gold/dev.txt'
 
     # Come up with a model name based on the hyperparameters
-    model_suffix = '_' + args.training_split + '_' + args.testing_split
+    model_suffix = '_'
+    model_suffix += 'g' if args.training_split == 'gold' else 'p'
+    model_suffix += 'g' if args.testing_split == 'gold' else 'p'
     if args.restrict_labels:
         model_suffix += '_rl'
     if args.use_stags:
@@ -180,7 +184,7 @@ def train(args):
                     print('Saving model to', model_dir + 'model')
                     saver.save(session, model_dir + 'model')
                 else:
-                    print('F1 deteriorated')
+                    print('F1 deteriorated (best score: {})'.format(best_f1))
                     bad_streak += 1
                     if bad_streak >= args.early_stopping:
                         print('No F1 improvement for %d epochs, stopping early'
