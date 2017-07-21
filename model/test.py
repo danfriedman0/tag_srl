@@ -5,6 +5,7 @@ from __future__ import division
 import os
 import argparse
 import tensorflow as tf
+import numpy as np
 import cPickle as pickle
 
 from model.srl import SRL_Model
@@ -31,28 +32,32 @@ def test(args):
 
     with open(os.path.join(model_dir, 'args.pkl'), 'r') as f:
         model_args = pickle.load(f)
-    model_args.restrict_labels = args.restrict_labels
-    
-    print("Building model...")
-    model = SRL_Model(vocabs, model_args)
+    # model_args.restrict_labels = args.restrict_labels
 
-    saver = tf.train.Saver()
+    with tf.Graph().as_default():
+        tf.set_random_seed(model_args.seed)
+        np.random.seed(model_args.seed)    
     
-    with tf.Session() as session:
-        print('Restoring model...')
-        saver.restore(session, tf.train.latest_checkpoint(model_dir))
-        
-        print('-' * 78)
-        print('Validating...')
-        valid_loss = model.run_testing_epoch(session, vocabs,
-                                             fn_valid, fn_sys)
-        print('Validation loss: {}'.format(valid_loss))
+        print("Building model...")
+        model = SRL_Model(vocabs, model_args)
 
-        print('-' * 78)
-        print('Running evaluation script...')
-        labeled_f1, unlabeled_f1 = run_evaluation_script(fn_gold, fn_sys)
-        print('Labeled F1:    {0:.2f}'.format(labeled_f1))
-        print('Unlabeled F1:  {0:.2f}'.format(unlabeled_f1))
+        saver = tf.train.Saver()
+
+        with tf.Session() as session:
+            print('Restoring model...')
+            saver.restore(session, tf.train.latest_checkpoint(model_dir))
+
+            print('-' * 78)
+            print('Validating...')
+            valid_loss = model.run_testing_epoch(session, vocabs,
+                                                 fn_valid, fn_sys)
+            print('Validation loss: {}'.format(valid_loss))
+
+            print('-' * 78)
+            print('Running evaluation script...')
+            labeled_f1, unlabeled_f1 = run_evaluation_script(fn_gold, fn_sys)
+            print('Labeled F1:    {0:.2f}'.format(labeled_f1))
+            print('Unlabeled F1:  {0:.2f}'.format(unlabeled_f1))
 
 
 if __name__ == '__main__':
