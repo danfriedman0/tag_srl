@@ -128,6 +128,8 @@ def train(args):
         model_suffix += '_bc'
     if args.use_tf_lstm:
         model_suffix += '_tf'
+    if args.seed != 89:
+        model_suffix += '_s{}'.format(args.seed)
     fn_sys = 'output/predictions/dev{}.txt'.format(model_suffix)
 
     # Prepare for saving the model
