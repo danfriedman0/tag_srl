@@ -10,6 +10,117 @@ import tensorflow as tf
 import collections
 
 
+class LSTMCell:
+    def __init__(self, input_size, state_size, batch_size):
+        self.Wx_shape = (input_size, 4 * state_size)
+        self.Wh_shape = (state_size, 4 * state_size)
+        self.W_init = tf.random_uniform_initializer(-0.08, 0.08)
+
+        self.b_shape = (4 * state_size,)
+        init_b = ([0 for _ in range(state_size)] +
+                  [1 for _ in range(state_size)] +
+                  [0 for _ in range(2 * state_size)])
+        self.b_init = tf.constant_initializer(init_b)
+
+        # Define the zero state
+        c_init = tf.zeros((batch_size, state_size), dtype=tf.float32)
+        h_init = tf.zeros((batch_size, state_size), dtype=tf.float32)
+        self.zero_state = tf.stack([c_init, h_init])
+
+        
+    def __call__(self, state, x):
+        Wx = tf.get_variable("Wx", shape=self.Wx_shape,
+                             initializer=self.W_init)
+        Wh = tf.get_variable("Wh", shape=self.Wh_shape,
+                             initializer=self.W_init)
+        b = tf.get_variable("b", shape=self.b_shape,
+                            initializer=self.b_init)
+
+        c_prev, h_prev = tf.unstack(state)
+
+        # Do all the linear combinations in one batch and then split
+        x_sum = tf.matmul(x, Wx)
+        h_sum = tf.matmul(h_prev, Wh)
+        all_sums = x_sum + h_sum + b
+
+        s1, s2, s3, s4 = tf.split(all_sums, 4, axis=1)
+
+        # i = input gate, f = forget gate, cn = candidate gate, o = output gate
+        i = tf.sigmoid(s1)
+        f = tf.sigmoid(s2)
+        cn = tf.tanh(s3)
+        o = tf.sigmoid(s4)
+
+        c_new = f * c_prev + i * cn
+        h_new = o * tf.tanh(c_new)
+
+        return tf.stack([c_new, h_new])
+
+
+    def scan(self, inputs, init_state=None):
+        if init_state is None:
+            init_state = self.zero_state
+        final_states = tf.scan(self.__call__, inputs, initializer=init_state)
+        _, outputs = tf.unstack(final_states, axis=1)
+        return outputs
+
+
+class BiLSTM:
+    def __init__(input_size, state_size, batch_size, num_layers, dropout):
+        self.cells = [LSTMCell(input_size, state_size, batch_size)]
+        for _ in xrange(num_layers - 1):
+            self.cells.append(LSTMCell(input_size, state_size, batch_size))
+        self.zero_state = tf.stack([cell.zero_state for cell in self.cells])
+
+    def __call__(inputs, init_state=None):
+        if init_state is None:
+            init_state = self.zero_state
+        init_states = tf.unstack(init_state)
+        next_inputs = inputs
+        for i, cell in enumerate(self.cells):
+            with tf.variable_scope('bilstm_%d' % i):
+                with tf.variable_scope('forward'):
+                    f_outputs = cell.scan(inputs, init_state)
+                with tf.variable_scope('backward'):
+                    r_inputs = tf.reverse(inputs, axis=(0,))
+                    rb_outputs = cell.scan(r_inputs, init_state)
+                    b_outputs = tf.reverse(rb_outputs, axis=(0,))
+                outputs = tf.concat([f_outputs, b_outputs], axis=2)
+                next_inputs = tf.nn.dropout(outputs, keep_prob=dropout)
+        return next_inputs
+
+    
+
+def make_stacked_bilstm(input_size,
+                        state_size,
+                        batch_size,
+                        num_layers,
+                        dropout,
+                        seq_lengths):
+    init_cells = [make_lstm_cell(input_size, state_size, batch_size)]
+    for _ in xrange(num_layers - 1):
+        init_cells.append(
+            make_lstm_cell(state_size * 2, state_size, batch_size))
+
+    cells, zero_states = zip(*init_cells)
+
+    def bilstm_fn(inputs, init_state):
+        init_states = tf.unstack(init_state)
+        next_inputs = inputs
+        for i, cell in enumerate(cells):
+            with tf.variable_scope("bilstm_%d" % i) as scope:
+                outputs = bilstm(next_inputs, cell, init_states[i])
+                next_inputs = tf.nn.dropout(outputs, keep_prob=dropout)
+        return next_inputs
+
+    zero_state = tf.stack(zero_states)
+
+    return bilstm_fn, zero_state
+    
+
+    
+
+
 def make_lstm_cell(input_size, state_size, batch_size):
     """
     Returns an lstm cell function and the zero state for the lstm.
@@ -103,7 +214,7 @@ def make_stacked_lstm_cell(input_size,
     return cell, zero_state
     
 
-def forward_lstm(inputs, lstm_cell, init_state):
+def forward_lstm(inputs, lstm_cell, init_state, keep_prob=1.0):
     """
     inputs shape: (num_steps, batch_size, embed_size)
     lstm_cell is a function (from model.lstm_cells) with signature
