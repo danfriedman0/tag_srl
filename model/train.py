@@ -62,8 +62,12 @@ parser.add_argument("--testing_split",
                     choices=['gold', 'pred'],
                     default='pred')
 parser.add_argument("--use_stags",
-                    help="Use UD supertags in the word representation",
+                    help="Use supertags",
                     action="store_true", default=False)
+parser.add_argument("--stag_type",
+                    help="Choice of supertags: ud, model1, model2, or None",
+                    choices=['ud', 'model1', 'model2'],
+                    default='ud')
 parser.add_argument("--stag_embed_size",
                     help="Embedding size for supertags",
                     default=50, type=int)
@@ -107,12 +111,16 @@ class Debug_Args(object):
         self.use_tf_lstm = False
         self.training_split = 'gold'
         self.testing_split = 'pred'
+        self.stag_type = 'model1'
     
 
 def train(args):
-    fn_train = 'data/conll09/{}/train.tag'.format(args.training_split)
-    fn_valid = 'data/conll09/{}/dev.tag'.format(args.testing_split)
+    fn_train = 'data/conll09/{}/train.{}.tag'.format(args.training_split,
+                                                     args.stag_type)
+    fn_valid = 'data/conll09/{}/dev.{}.tag'.format(args.testing_split,
+                                                   args.stag_type)
     fn_gold = 'data/conll09/gold/dev.txt'
+    print(fn_train)
 
     # Come up with a model name based on the hyperparameters
     model_suffix = '_'
@@ -121,7 +129,7 @@ def train(args):
     if args.restrict_labels:
         model_suffix += '_rl'
     if args.use_stags:
-        model_suffix += '_st'
+        model_suffix += '_st_{}'.format(args.stag_type)
     if args.dropout < 1.0:
         model_suffix += '_dr{}'.format(args.dropout)
     if args.use_basic_classifier:
@@ -140,7 +148,7 @@ def train(args):
     with open(model_dir + 'args.pkl', 'w') as f:
         pickle.dump(args, f)
 
-    vocabs = vocab.get_vocabs()
+    vocabs = vocab.get_vocabs(args.stag_type)
 
     with tf.Graph().as_default():
         tf.set_random_seed(args.seed)

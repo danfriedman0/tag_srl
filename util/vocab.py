@@ -20,12 +20,12 @@ class Vocab(object):
         self.zero = zero
         self.unk = unk
         self.alpha = alpha
-        
+
         with open(fn, 'r') as f:
             lines = f.readlines()
         counts = [line.strip().split(' ') for line in lines]
         self.counts = {w: int(c) for w, c in counts}
-
+        
         if self.zero is not None:
             self.idx_to_word = {}
             self.idx_to_word[0] = self.zero
@@ -71,7 +71,7 @@ class Vocab(object):
 
 
     
-def get_vocabs():
+def get_vocabs(stag_type='ud'):
     """
     Returns a dictionary of Vocab objects for words, parts of speech,
       predicate lemmas, and semantic role labels
@@ -79,7 +79,10 @@ def get_vocabs():
     vocab_types = ['words', 'pos', 'lemmas', 'labels', 'stags']
     vocabs = {}
     for vocab_type in vocab_types:
-        fn = 'data/vocab/{}.txt'.format(vocab_type)
+        if vocab_type == 'stags':
+            fn = 'data/vocab/stags.{}.txt'.format(stag_type)
+        else:
+            fn = 'data/vocab/{}.txt'.format(vocab_type)
         if vocab_type == 'labels':
             zero = None
             unk = None

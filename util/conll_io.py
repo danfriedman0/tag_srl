@@ -228,7 +228,6 @@ def conll09_generator(f, only_sent=False):
     Given a file object, yields CoNLL09_Sent_with_Pred objects.
     """
     pred_to_frame = get_pred_to_frame()
-    
     lines = []
     for line in f:
         if line == '\n':

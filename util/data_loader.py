@@ -85,6 +85,7 @@ def batch_producer(batch_size, vocabs, fn, train=True):
       (useful for evaluation)
     """
     sents = []
+    print(fn)
     with open(fn, 'r') as f:
         for sent in conll09_generator(f):
             sents.append(sent)
