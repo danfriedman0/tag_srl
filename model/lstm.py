@@ -39,8 +39,8 @@ class LSTMCell:
         c_prev, h_prev = tf.unstack(state)
 
         # Do all the linear combinations in one batch and then split
-        x_sum = tf.matmul(x, Wx)
-        h_sum = tf.matmul(h_prev, Wh)
+        x_sum = tf.matmul(x, Wx, name='x_sum')
+        h_sum = tf.matmul(h_prev, Wh, name='h_sum')
         all_sums = x_sum + h_sum + b
 
         s1, s2, s3, s4 = tf.split(all_sums, 4, axis=1)
@@ -65,14 +65,37 @@ class LSTMCell:
         return outputs
 
 
-class BiLSTM:
-    def __init__(input_size, state_size, batch_size, num_layers, dropout):
+class LSTM:
+    def __init__(self, input_size, state_size, batch_size,
+                 num_layers, dropout):
         self.cells = [LSTMCell(input_size, state_size, batch_size)]
         for _ in xrange(num_layers - 1):
-            self.cells.append(LSTMCell(input_size, state_size, batch_size))
+            self.cells.append(LSTMCell(state_size, state_size, batch_size))
         self.zero_state = tf.stack([cell.zero_state for cell in self.cells])
+        self.dropout = dropout
 
-    def __call__(inputs, init_state=None):
+    def __call__(self, inputs, init_state=None):
+        if init_state is None:
+            init_state = self.zero_state
+        init_states = tf.unstack(init_state)
+        next_inputs = inputs
+        for i, cell in enumerate(self.cells):
+            with tf.variable_scope('lstm_%d' % i):
+                outputs = cell.scan(next_inputs, init_states[i])
+                next_inputs = tf.nn.dropout(outputs, keep_prob=self.dropout)
+        return next_inputs
+        
+        
+class BiLSTM:
+    def __init__(self, input_size, state_size, batch_size,
+                 num_layers, dropout):
+        self.cells = [LSTMCell(input_size, state_size, batch_size)]
+        for _ in xrange(num_layers - 1):
+            self.cells.append(LSTMCell(2 * state_size, state_size, batch_size))
+        self.zero_state = tf.stack([cell.zero_state for cell in self.cells])
+        self.dropout = dropout
+
+    def __call__(self, inputs, init_state=None):
         if init_state is None:
             init_state = self.zero_state
         init_states = tf.unstack(init_state)
@@ -80,13 +103,13 @@ class BiLSTM:
         for i, cell in enumerate(self.cells):
             with tf.variable_scope('bilstm_%d' % i):
                 with tf.variable_scope('forward'):
-                    f_outputs = cell.scan(inputs, init_state)
+                    f_outputs = cell.scan(next_inputs, init_states[i])
                 with tf.variable_scope('backward'):
-                    r_inputs = tf.reverse(inputs, axis=(0,))
-                    rb_outputs = cell.scan(r_inputs, init_state)
+                    r_inputs = tf.reverse(next_inputs, axis=(0,))
+                    rb_outputs = cell.scan(r_inputs, init_states[i])
                     b_outputs = tf.reverse(rb_outputs, axis=(0,))
                 outputs = tf.concat([f_outputs, b_outputs], axis=2)
-                next_inputs = tf.nn.dropout(outputs, keep_prob=dropout)
+                next_inputs = tf.nn.dropout(outputs, keep_prob=self.dropout)
         return next_inputs
 
     

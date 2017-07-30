@@ -117,20 +117,14 @@ class SRL_Model(object):
         ## on or off
         dropout = 1.0 - (1.0 - args.dropout) * use_dropout_placeholder
         
-        if args.use_tf_lstm:
-            make_lstm = lstm.make_stacked_tf_bilstm
-        else:
-            make_lstm = lstm.make_stacked_bilstm
-
-        bilstm, zero_state = make_lstm(
+        bilstm = lstm.BiLSTM(
             input_size=input_size,
             state_size=args.state_size,
             batch_size=args.batch_size,
             num_layers=args.num_layers,
-            dropout=dropout,
-            seq_lengths=seq_lengths_placeholder)
+            dropout=dropout)
         
-        lstm_outputs = bilstm(lstm_inputs, zero_state)
+        lstm_outputs = bilstm(lstm_inputs)
 
         ## Transpose back to (batch_size, num_steps, embed_size)
         outputs = tf.transpose(lstm_outputs, perm=[1, 0, 2])
@@ -228,6 +222,7 @@ class SRL_Model(object):
         ## Clip gradients (https://stackoverflow.com/a/36501922)
         optimizer = tf.train.AdamOptimizer()
         gvs = optimizer.compute_gradients(loss)
+        print('\n'.join([v.name for g, v in gvs if g is None]))
         clipped_gvs = [(tf.clip_by_value(grad, -1., 1.), var)
                        for grad, var in gvs]
         train_op = optimizer.apply_gradients(clipped_gvs)
