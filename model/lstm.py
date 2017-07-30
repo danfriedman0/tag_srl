@@ -11,7 +11,13 @@ import collections
 
 
 class LSTMCell:
-    def __init__(self, input_size, state_size, batch_size):
+    def set_dropout_mask(self, dropout):
+        # dropout mask to apply recurrent dropout to lstm state
+        ones = tf.ones(self.zero_state.shape, dtype=tf.float32)
+        self.dropout_mask = tf.nn.dropout(ones, keep_prob=dropout)
+
+    
+    def __init__(self, input_size, state_size, batch_size, dropout=1.0):
         self.Wx_shape = (input_size, 4 * state_size)
         self.Wh_shape = (state_size, 4 * state_size)
         self.W_init = tf.random_uniform_initializer(-0.08, 0.08)
@@ -27,6 +33,8 @@ class LSTMCell:
         h_init = tf.zeros((batch_size, state_size), dtype=tf.float32)
         self.zero_state = tf.stack([c_init, h_init])
 
+        self.set_dropout_mask(dropout)
+
         
     def __call__(self, state, x):
         Wx = tf.get_variable("Wx", shape=self.Wx_shape,
@@ -36,6 +44,9 @@ class LSTMCell:
         b = tf.get_variable("b", shape=self.b_shape,
                             initializer=self.b_init)
 
+        # Apply recurrent dropout
+        state = state * self.dropout_mask
+        
         c_prev, h_prev = tf.unstack(state)
 
         # Do all the linear combinations in one batch and then split
@@ -57,9 +68,10 @@ class LSTMCell:
         return tf.stack([c_new, h_new])
 
 
-    def scan(self, inputs, init_state=None):
+    def scan(self, inputs, dropout, init_state=None):
         if init_state is None:
             init_state = self.zero_state
+        self.set_dropout_mask(dropout)
         final_states = tf.scan(self.__call__, inputs, initializer=init_state)
         _, outputs = tf.unstack(final_states, axis=1)
         return outputs
@@ -94,22 +106,28 @@ class BiLSTM:
             self.cells.append(LSTMCell(2 * state_size, state_size, batch_size))
         self.zero_state = tf.stack([cell.zero_state for cell in self.cells])
         self.dropout = dropout
+        self.noise_shape = (1, batch_size, 2 * state_size)
 
     def __call__(self, inputs, init_state=None):
         if init_state is None:
             init_state = self.zero_state
         init_states = tf.unstack(init_state)
         next_inputs = inputs
+
         for i, cell in enumerate(self.cells):
             with tf.variable_scope('bilstm_%d' % i):
                 with tf.variable_scope('forward'):
-                    f_outputs = cell.scan(next_inputs, init_states[i])
+                    f_outputs = cell.scan(
+                        next_inputs, self.dropout, init_states[i])
                 with tf.variable_scope('backward'):
                     r_inputs = tf.reverse(next_inputs, axis=(0,))
-                    rb_outputs = cell.scan(r_inputs, init_states[i])
+                    rb_outputs = cell.scan(
+                        r_inputs, self.dropout, init_states[i])
                     b_outputs = tf.reverse(rb_outputs, axis=(0,))
                 outputs = tf.concat([f_outputs, b_outputs], axis=2)
-                next_inputs = tf.nn.dropout(outputs, keep_prob=self.dropout)
+                next_inputs = tf.nn.dropout(outputs,
+                                            keep_prob=self.dropout,
+                                            noise_shape=self.noise_shape)
         return next_inputs
 
     
