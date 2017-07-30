@@ -115,10 +115,14 @@ class Debug_Args(object):
     
 
 def train(args):
-    fn_train = 'data/conll09/{}/train.{}.tag'.format(args.training_split,
-                                                     args.stag_type)
-    fn_valid = 'data/conll09/{}/dev.{}.tag'.format(args.testing_split,
-                                                   args.stag_type)
+    if args.use_stags:
+        fn_train = 'data/conll09/{}/train.{}.tag'.format(args.training_split,
+                                                         args.stag_type)
+        fn_valid = 'data/conll09/{}/dev.{}.tag'.format(args.testing_split,
+                                                       args.stag_type)
+    else:
+        fn_train = 'data/conll09/{}/train.txt'.format(args.training_split)
+        fn_valid = 'data/conll09/{}/dev.txt'.format(args.testing_split)
     fn_gold = 'data/conll09/gold/dev.txt'
     print(fn_train)
 
