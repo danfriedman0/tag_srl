@@ -44,9 +44,6 @@ class LSTMCell:
         b = tf.get_variable("b", shape=self.b_shape,
                             initializer=self.b_init)
 
-        # Apply recurrent dropout
-        state = state * self.dropout_mask
-        
         c_prev, h_prev = tf.unstack(state)
 
         # Do all the linear combinations in one batch and then split
