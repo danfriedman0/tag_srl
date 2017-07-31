@@ -66,8 +66,11 @@ parser.add_argument("--use_stags",
                     action="store_true", default=False)
 parser.add_argument("--stag_type",
                     help="Choice of supertags: ud, model1, model2, or None",
-                    choices=['ud', 'model1', 'model2'],
-                    default='ud')
+                    choices=['model1', 'model2'],
+                    default='model1')
+parser.add_argument("--use_gold_stags",
+                    help="Train with gold supertags",
+                    action="store_true", default=False)
 parser.add_argument("--stag_embed_size",
                     help="Embedding size for supertags",
                     default=50, type=int)
@@ -112,19 +115,29 @@ class Debug_Args(object):
         self.training_split = 'gold'
         self.testing_split = 'pred'
         self.stag_type = 'model1'
+        self.use_gold_stags = True
     
 
 def train(args):
+    # Set the filepaths for training and validation
+    fn_txt_train = 'data/conll09/train.txt'
+    fn_preds_train = 'data/conll09/{}/train_predicates.txt'.format(
+        'gold' if args.use_gold_preds else 'pred')
     if args.use_stags:
-        fn_train = 'data/conll09/{}/train.{}.tag'.format(args.training_split,
-                                                         args.stag_type)
-        fn_valid = 'data/conll09/{}/dev.{}.tag'.format(args.testing_split,
-                                                       args.stag_type)
+        fn_stags_train = 'data/conll09/{}/train_stags_{}.txt'.format(
+            ('gold' if args.use_gold_stags else 'pred'),
+            args.stag_type)
     else:
-        fn_train = 'data/conll09/{}/train.txt'.format(args.training_split)
-        fn_valid = 'data/conll09/{}/dev.txt'.format(args.testing_split)
-    fn_gold = 'data/conll09/gold/dev.txt'
-    print(fn_train)
+        fn_stags_train = fn_preds_train
+        
+    fn_txt_valid = 'data/conll09/dev.txt'
+    fn_preds_valid = 'data/conll09/pred/dev_predicates.txt'
+    if args.use_stags:
+        fn_stags_valid = 'data/conll09/pred/dev_stags_{}.txt'.format(
+            args.stag_type)
+    else:
+        fn_stags_valid = fn_preds_valid
+    
 
     # Come up with a model name based on the hyperparameters
     model_suffix = '_'
@@ -134,6 +147,7 @@ def train(args):
         model_suffix += '_rl'
     if args.use_stags:
         model_suffix += '_st_{}'.format(args.stag_type)
+        model_suffix += 'g' if args.use_gold_stags else 'p'
     if args.dropout < 1.0:
         model_suffix += '_dr{}'.format(args.dropout)
     if args.use_basic_classifier:
@@ -173,7 +187,8 @@ def train(args):
                 print('Epoch {}'.format(i))
                 start = timer()
                 train_loss = model.run_training_epoch(
-                    session, vocabs, fn_train)
+                    session, vocabs, fn_txt_train, fn_preds_train,
+                    fn_stags_train)
                 end = timer()
                 print('Done with epoch {}'.format(i))
                 print('Avg loss: {}, total time: {}'.format(
@@ -182,7 +197,8 @@ def train(args):
                 print('-' * 78)
                 print('Validating...')
                 valid_loss = model.run_testing_epoch(
-                    session, vocabs, fn_valid, fn_sys)
+                    session, vocabs, fn_txt_valid, fn_preds_train,
+                    fn_stags_train, fn_sys)
                 print('Validation loss: {}'.format(valid_loss))
 
                 print('-' * 78)

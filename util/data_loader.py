@@ -69,15 +69,14 @@ def make_batch(sents, vocabs, train):
     preds_idx = make_batch_field_single(sents, 'pred_idx')
     labels = make_batch_field_sequence(sents, 'labels',
                                        seq_length, vocabs['labels'])
-    labels_mask = make_batch_labels_masks(sents, vocabs['labels'])    
     stags = make_batch_field_sequence(sents, 'stags',
                                       seq_length, vocabs['stags'])
     seq_lengths = make_batch_field_single(sents, 'length')
     return (words, pos, lemmas, preds, preds_idx,
-            labels, labels_mask, stags, seq_lengths)
+            labels, stags, seq_lengths)
 
     
-def batch_producer(batch_size, vocabs, fn, train=True):
+def batch_producer(batch_size, vocabs, fn_txt, fn_preds, fn_stags, train=True):
     """
     vocabs should be a dictionary of Vocab objects keyed "words", "pos", etc.
     See `make_batch` for details about what's in a batch.
@@ -85,14 +84,12 @@ def batch_producer(batch_size, vocabs, fn, train=True):
       (useful for evaluation)
     """
     sents = []
-    print(fn)
-    with open(fn, 'r') as f:
-        for sent in conll09_generator(f):
-            sents.append(sent)
-            if len(sents) == batch_size:
-                yield sents, make_batch(sents, vocabs, train)
-                sents = []
-        # Fill out the last batch if the data doesn't evenly divide
-        if len(sents) > 0 and len(sents) < batch_size:
-            sents += [sents[0] for _ in xrange(batch_size - len(sents))]
+    for sent in conll09_generator(fn_txt, fn_preds, fn_stags):
+        sents.append(sent)
+        if len(sents) == batch_size:
             yield sents, make_batch(sents, vocabs, train)
+            sents = []
+    # Fill out the last batch if the data doesn't evenly divide
+    if len(sents) > 0 and len(sents) < batch_size:
+        sents += [sents[0] for _ in xrange(batch_size - len(sents))]
+        yield sents, make_batch(sents, vocabs, train)

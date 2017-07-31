@@ -1,6 +1,7 @@
 # conll_io.py
 # Classes for reading and writing data in CoNLL-09 format
 import numpy as np
+from itertools import izip
 
 class CoNLL09_Pred_List(object):
     """
@@ -45,13 +46,13 @@ class CoNLL09_Sent(object):
         self.words = [self.normalize(line[1]) for line in lines]
         self.pos = [line[5] for line in lines]
         self.stags = [line[-1] for line in lines]
-        self.preds = [line[13] for line in lines]
+        self.preds = [line[-2] for line in lines]
 
         # If line[13] is the predicate in the form "pred_lemma.xx")
         self.lemmas = []        
         for line in lines:
             if line[12] == 'Y':
-                self.lemmas.append(line[13].split('.')[0])
+                self.lemmas.append(line[-2].split('.')[0])
             else:
                 self.lemmas.append('_')
 
@@ -61,8 +62,8 @@ class CoNLL09_Sent(object):
         pred_num = 0
         for i, line in enumerate(lines):
             if line[12] == 'Y':
-                full_pred = line[13]
-                pred_lemma = line[13].split('.')[0]
+                full_pred = line[-2]
+                pred_lemma = line[-2].split('.')[0]
                 pred_idx = i
 
                 # `arg_seq` is the semantic dependency relation of each word
@@ -130,11 +131,9 @@ class CoNLL09_Sent_with_Pred(object):
     """
     This is like a CoNLL09_Sent but encoded for a specific predicate.
     It has fields for words, pos, lemmas, stags, etc., and also a pointer
-    to the parent CoNLL09_Sent. I'm pretty sure lists are always stored
-    by reference in python so this shouldn't add too much memory overhead,
-    and it makes it easier to do predicate specific encoding.
+    to the parent CoNLL09_Sent.
     """
-    def __init__(self, sent, pred_num, pred_to_frame):
+    def __init__(self, sent, pred_num):
         self.words = sent.words
         self.pos = sent.pos
         self.lemmas = sent.lemmas
@@ -150,26 +149,12 @@ class CoNLL09_Sent_with_Pred(object):
             self.pred_idx = pred_list.pred_idx
             self.labels = pred_list.arg_seq
 
-            # Add the frame (a list of allowable semantic role labels)
-            if self.pred in pred_to_frame:
-                self.frame = pred_to_frame[self.pred]
-            else:
-                self.frame = []
-            
-            # self.count = 0
-            # for i, label in enumerate(self.labels):
-            #     if label != '_' and label not in self.frame:
-            #         self.count += 1
-                    # word = self.words[self.pred_idx]
-                    # print(word, self.pred, self.full_pred, pos, label)
-
         else:
             self.count = 0
             pred_list = []
             self.pred = None
             self.pred_idx = 0
             self.labels = []
-            self.frame = []
             
         self.predictions = []
         self.pred_num = pred_num
@@ -194,13 +179,6 @@ class CoNLL09_Sent_with_Pred(object):
         """
         if self.pred_num < 0:
             return
-        
-        # # Only allow valid labels
-        # if restrict_labels:
-        #     mask = np.zeros(vocab.size, dtype=np.float32)
-        #     for label in self.frame:
-        #         mask[vocab.encode(label)] = 1.0
-        #         probs *= mask
 
         # Decode predictions
         raw_predictions = np.argmax(probs, axis=1)
@@ -222,7 +200,7 @@ def get_pred_to_frame(fn_in='data/frames.txt'):
     return pred_to_frame
 
             
-def conll09_generator(f, only_sent=False):
+def _conll09_generator(f, only_sent=False):
     """
     Generator for reading data in CoNLL format.
     Given a file object, yields CoNLL09_Sent_with_Pred objects.
@@ -242,6 +220,29 @@ def conll09_generator(f, only_sent=False):
                     yield CoNLL09_Sent_with_Pred(sent, -1, pred_to_frame)
         else:
             lines.append(line.strip().split('\t'))
+
+            
+def conll09_generator(fn_txt, fn_preds, fn_stags):
+    """
+    Generator for reading data in CoNLL format.
+    Given a file object, yields CoNLL09_Sent_with_Pred objects.
+    """
+    fs = [open(fn, 'r') for fn in [fn_txt, fn_preds, fn_stags]]
+    lines = []
+    for line, pred, stag in izip(*fs):
+        if line == '\n':
+            sent = CoNLL09_Sent(lines)
+            lines = []
+            for i in xrange(sent.num_preds):
+                yield CoNLL09_Sent_with_Pred(sent, i)
+            if sent.num_preds == 0:
+                yield CoNLL09_Sent_with_Pred(sent, -1)
+        else:
+            line = line.strip().split('\t')
+            line.append(pred.strip())
+            line.append(stag.strip())
+            lines.append(line)
+    [f.close() for f in fs]
 
 
 def test_frames():

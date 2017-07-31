@@ -249,7 +249,7 @@ class SRL_Model(object):
 
     def batch_to_feed(self, batch):
         (words, pos, lemmas, preds, preds_idx,
-         labels, labels_mask, stags, seq_lengths) = batch
+         labels, stags, seq_lengths) = batch
         feed_dict = {
             self.words_placeholder: words,
             self.pos_placeholder: pos,
@@ -257,7 +257,6 @@ class SRL_Model(object):
             self.preds_placeholder: preds,
             self.preds_idx_placeholder: preds_idx,
             self.labels_placeholder: labels,
-            self.labels_mask_placeholder: labels_mask,
             self.stags_placeholder: stags,
             self.seq_lengths_placeholder: seq_lengths
         }
@@ -292,7 +291,7 @@ class SRL_Model(object):
         return loss, probabilities
     
 
-    def run_training_epoch(self, session, vocabs, fn):
+    def run_training_epoch(self, session, vocabs, fn_txt, fn_preds, fn_stags):
         batch_size = self.args.batch_size
         total_loss = 0
         num_batches = 0
@@ -300,7 +299,7 @@ class SRL_Model(object):
         if self.training_batches is None:
             print('Loading training batches...')
             self.training_batches = [batch for batch in batch_producer(
-                batch_size, vocabs, fn, train=True)]
+                batch_size, vocabs, fn_txt, fn_preds, fn_stags, train=True)]
             print('Loaded {} training batches'.format(
                 len(self.training_batches)))
         total_batches = len(self.training_batches)
@@ -319,7 +318,8 @@ class SRL_Model(object):
         return total_loss / num_batches
 
 
-    def run_testing_epoch(self, session, vocabs, fn, fn_sys):
+    def run_testing_epoch(self, session, vocabs, fn_txt, fn_preds,
+                          fn_stags, fn_sys):
         batch_size = self.args.batch_size
         total_loss = 0
         num_batches = 0
@@ -327,7 +327,7 @@ class SRL_Model(object):
         if self.testing_batches is None:
             print('Loading testing batches...')
             self.testing_batches = [batch for batch in batch_producer(
-                batch_size, vocabs, fn, train=False)]
+                batch_size, vocabs, fn_txt, fn_preds, fn_stags, train=False)]
             print('Loaded {} testing batches.'.format(
                 len(self.testing_batches)))
         total_batches = len(self.testing_batches)
