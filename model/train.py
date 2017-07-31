@@ -122,7 +122,7 @@ def train(args):
     # Set the filepaths for training and validation
     fn_txt_train = 'data/conll09/train.txt'
     fn_preds_train = 'data/conll09/{}/train_predicates.txt'.format(
-        'gold' if args.use_gold_preds else 'pred')
+        args.training_split)
     if args.use_stags:
         fn_stags_train = 'data/conll09/{}/train_stags_{}.txt'.format(
             ('gold' if args.use_gold_stags else 'pred'),
