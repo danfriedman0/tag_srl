@@ -49,7 +49,7 @@ parser.add_argument("--learning_rate",
                     default=0.01, type=float)
 parser.add_argument("--max_epochs",
                     help="Maximum number of epochs to train for",
-                    default=25, type=int)
+                    default=50, type=int)
 parser.add_argument("--restrict_labels",
                     help="Only allow labels from a predicate's frame",
                     action="store_true", default=False)
@@ -204,7 +204,7 @@ def train(args):
                 print('-' * 78)
                 print('Running evaluation script...')
                 labeled_f1, unlabeled_f1 = run_evaluation_script(
-                    fn_gold, fn_sys)
+                    fn_text_valid, fn_sys)
                 print('Labeled F1:    {0:.2f}'.format(labeled_f1))
                 print('Unlabeled F1:  {0:.2f}'.format(unlabeled_f1))
 
