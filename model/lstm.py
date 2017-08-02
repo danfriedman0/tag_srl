@@ -11,10 +11,10 @@ import collections
 
 
 class LSTMCell:
-    def set_dropout_mask(self, dropout):
+    def set_dropout_mask(self):
         # dropout mask to apply recurrent dropout to lstm state
         ones = tf.ones(self.zero_state.shape, dtype=tf.float32)
-        self.dropout_mask = tf.nn.dropout(ones, keep_prob=dropout)
+        self.dropout_mask = tf.nn.dropout(ones, keep_prob=self.dropout)
 
     
     def __init__(self, input_size, state_size, batch_size, dropout=1.0):
@@ -33,7 +33,8 @@ class LSTMCell:
         h_init = tf.zeros((batch_size, state_size), dtype=tf.float32)
         self.zero_state = tf.stack([c_init, h_init])
 
-        self.set_dropout_mask(dropout)
+        self.dropout = dropout
+        self.set_dropout_mask()
 
         
     def __call__(self, state, x):
@@ -65,10 +66,10 @@ class LSTMCell:
         return tf.stack([c_new, h_new])
 
 
-    def scan(self, inputs, dropout, init_state=None):
+    def scan(self, inputs, init_state=None):
         if init_state is None:
             init_state = self.zero_state
-        self.set_dropout_mask(dropout)
+        self.set_dropout_mask()
         final_states = tf.scan(self.__call__, inputs, initializer=init_state)
         _, outputs = tf.unstack(final_states, axis=1)
         return outputs
@@ -110,21 +111,16 @@ class BiLSTM:
             init_state = self.zero_state
         init_states = tf.unstack(init_state)
         next_inputs = inputs
-
         for i, cell in enumerate(self.cells):
             with tf.variable_scope('bilstm_%d' % i):
                 with tf.variable_scope('forward'):
-                    f_outputs = cell.scan(
-                        next_inputs, self.dropout, init_states[i])
+                    f_outputs = cell.scan(next_inputs, init_states[i])
                 with tf.variable_scope('backward'):
                     r_inputs = tf.reverse(next_inputs, axis=(0,))
-                    rb_outputs = cell.scan(
-                        r_inputs, self.dropout, init_states[i])
+                    rb_outputs = cell.scan(r_inputs, init_states[i])
                     b_outputs = tf.reverse(rb_outputs, axis=(0,))
                 outputs = tf.concat([f_outputs, b_outputs], axis=2)
-                next_inputs = tf.nn.dropout(outputs,
-                                            keep_prob=self.dropout,
-                                            noise_shape=self.noise_shape)
+                next_inputs = tf.nn.dropout(outputs, keep_prob=self.dropout)
         return next_inputs
 
     
