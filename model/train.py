@@ -197,8 +197,8 @@ def train(args):
                 print('-' * 78)
                 print('Validating...')
                 valid_loss = model.run_testing_epoch(
-                    session, vocabs, fn_txt_valid, fn_preds_train,
-                    fn_stags_train, fn_sys)
+                    session, vocabs, fn_txt_valid, fn_preds_valid,
+                    fn_stags_valid, fn_sys)
                 print('Validation loss: {}'.format(valid_loss))
 
                 print('-' * 78)
