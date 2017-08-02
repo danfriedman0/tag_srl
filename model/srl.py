@@ -310,7 +310,9 @@ class SRL_Model(object):
             num_batches += 1
             if i % 10 == 0:
                 avg_loss = total_loss / num_batches
-                msg = '\r{}/{}    loss: {}'.format(i, total_batches, avg_loss)
+                batch_size = len(batch[0][1])
+                msg = '\r{}/{}    loss: {0:.12f}    batch_size: {}'.format(
+                    i, total_batches, avg_loss, batch_size)
                 sys.stdout.write(msg)
                 sys.stdout.flush()
         print('\n')
@@ -349,7 +351,8 @@ class SRL_Model(object):
             
             if i % 10 == 0:
                 avg_loss = total_loss / num_batches
-                msg = '\r{}/{}    loss: {}'.format(i, total_batches, avg_loss)
+                msg = '\r{}/{}    loss: {0:.12f}'.format(
+                    i, total_batches, avg_loss)
                 sys.stdout.write(msg)
                 sys.stdout.flush()
         print('\n')

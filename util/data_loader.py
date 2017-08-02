@@ -83,8 +83,11 @@ def batch_producer(batch_size, vocabs, fn_txt, fn_preds, fn_stags, train=True):
     Returns the batch and also the corresponding list of sentence objects
       (useful for evaluation)
     """
+    all_sents = [s for s in conll09_generator(fn_txt, fn_preds, fn_stags)]
+    if train:
+        all_sents = sorted(all_sents, key=lambda s: -len(s))
     sents = []
-    for sent in conll09_generator(fn_txt, fn_preds, fn_stags):
+    for sent in all_sents: #conll09_generator(fn_txt, fn_preds, fn_stags):
         # During training, skip sentences without predicates
         # (but include them during testing to make it simpler to write
         # predictions to file)
