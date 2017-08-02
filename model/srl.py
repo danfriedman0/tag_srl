@@ -8,7 +8,7 @@ import sys
 import numpy as np
 import tensorflow as tf
 
-from model import layers, lstm
+from model import layers, lstm, stags
 from util.data_loader import batch_producer
 from tensorflow.python.client import timeline
 from timeit import default_timer as timer
@@ -79,13 +79,21 @@ class SRL_Model(object):
         word_features = [word_embeddings, pretr_word_embeddings,
                          pos_embeddings, lemma_embeddings]
 
-        ## UD supertag embeddings
+        ## Supertag embeddings
         if args.use_stags:
             stag_embeddings = layers.embed_inputs(
                 raw_inputs=stags_placeholder,
                 vocab_size=vocabs['stags'].size,
                 embed_size=args.stag_embed_size,
                 name='stag_embedding')
+            if args.use_stag_features:
+                stag_feats = stags.get_model1_embeddings(
+                    vocabs['stags'], args.stag_feature_embed_size)
+                stag_feat_embeddings = tf.nn.embedding_lookup(
+                    stag_feats, stags_placeholder)
+                stag_embeddings = tf.concat([stag_embeddings,
+                                             stag_feat_embeddings],
+                                            axis=2)
             word_features.append(stag_embeddings)
          
         ## Binary flags to mark the predicate
@@ -98,15 +106,14 @@ class SRL_Model(object):
         
         ## Concatenate all the word features on the last dimension
         inputs = tf.concat(word_features, axis=2)
-
-        input_size = (args.word_embed_size +
-                      pretr_embed_size +
-                      args.pos_embed_size +
-                      args.lemma_embed_size + 1)
-        if args.use_stags:
-            input_size += args.stag_embed_size
+        # input_size = (args.word_embed_size +
+        #               pretr_embed_size +
+        #               args.pos_embed_size +
+        #               args.lemma_embed_size + 1)
+        # if args.use_stags:
+        #     input_size += args.stag_embed_size
+        input_size = inputs.shape[2]
         
-
         # BiLSTM
 
         ## (num_steps, batch_size, embed_size)
@@ -222,7 +229,6 @@ class SRL_Model(object):
         ## Clip gradients (https://stackoverflow.com/a/36501922)
         optimizer = tf.train.AdamOptimizer()
         gvs = optimizer.compute_gradients(loss)
-        print('\n'.join([v.name for g, v in gvs if g is None]))
         clipped_gvs = [(tf.clip_by_value(grad, -1., 1.), var)
                        for grad, var in gvs]
         train_op = optimizer.apply_gradients(clipped_gvs)
@@ -311,7 +317,7 @@ class SRL_Model(object):
             if i % 10 == 0:
                 avg_loss = total_loss / num_batches
                 batch_size = len(batch[0][1])
-                msg = '\r{}/{}    loss: {0:.12f}    batch_size: {}'.format(
+                msg = '\r{}/{}    loss: {}    batch_size: {}'.format(
                     i, total_batches, avg_loss, batch_size)
                 sys.stdout.write(msg)
                 sys.stdout.flush()
@@ -351,7 +357,7 @@ class SRL_Model(object):
             
             if i % 10 == 0:
                 avg_loss = total_loss / num_batches
-                msg = '\r{}/{}    loss: {0:.12f}'.format(
+                msg = '\r{}/{}    loss: {}'.format(
                     i, total_batches, avg_loss)
                 sys.stdout.write(msg)
                 sys.stdout.flush()

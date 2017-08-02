@@ -74,6 +74,12 @@ parser.add_argument("--use_gold_stags",
 parser.add_argument("--stag_embed_size",
                     help="Embedding size for supertags",
                     default=50, type=int)
+parser.add_argument("--use_stag_features",
+                    help="Use feature based supertag embeddings",
+                    action="store_true", default=False)
+parser.add_argument("--stag_feature_embed_size",
+                    help="Size of feature-based supertag embeddings",
+                    default=25, type=int)
 parser.add_argument("--use_basic_classifier",
                     help="Use the basic role classifier",
                     action="store_true", default=False)
@@ -116,6 +122,8 @@ class Debug_Args(object):
         self.testing_split = 'pred'
         self.stag_type = 'model1'
         self.use_gold_stags = True
+        self.use_stag_features = True
+        self.stag_feature_embed_size = 8
     
 
 def train(args):
@@ -146,8 +154,10 @@ def train(args):
     if args.restrict_labels:
         model_suffix += '_rl'
     if args.use_stags:
-        model_suffix += '_st_{}'.format(args.stag_type)
+        model_suffix += '_st{}_{}'.format(args.stag_embed_size, args.stag_type)
         model_suffix += 'g' if args.use_gold_stags else 'p'
+        if args.use_stag_features:
+            model_suffix += 'f{}'.format(args.stag_feature_embed_size)
     if args.dropout < 1.0:
         model_suffix += '_dr{}'.format(args.dropout)
     if args.use_basic_classifier:
