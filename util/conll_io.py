@@ -42,7 +42,7 @@ class CoNLL09_Sent(object):
           stags: supertags
           preds: a list of the predicates (or '_' for non-predicates)
         """
-        self.lines = [line[:14] for line in lines]
+        self.lines = [line[:13] for line in lines]
         self.words = [self.normalize(line[1]) for line in lines]
         self.pos = [line[5] for line in lines]
         self.stags = [line[-1] for line in lines]
@@ -116,9 +116,8 @@ class CoNLL09_Sent(object):
         
     def __str__(self):
         out = []
-        pred_idxs = [p_list.pred_idx for p_list in self.pred_lists]
         for i, line in enumerate(self.lines):
-            line_out = line + self.predictions_list[i]
+            line_out = line + [self.preds[i]] + self.predictions_list[i]
             out.append('\t'.join(line_out))
         return '\n'.join(out) + '\n'
 
