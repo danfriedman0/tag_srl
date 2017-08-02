@@ -139,15 +139,14 @@ class CoNLL09_Sent_with_Pred(object):
         self.stags = sent.stags
         self.length = len(self.words)
 
-        # pred_num < 0 means that this is a dummy object for a sentence
+        # pred_num == -1 means that this is a dummy object for a sentence
         # with no predicates
-        if pred_num >= 0:
+        if pred_num != -1:
             pred_list = sent.pred_lists[pred_num]
             self.pred = pred_list.pred_lemma
             self.full_pred = pred_list.full_pred
             self.pred_idx = pred_list.pred_idx
             self.labels = pred_list.arg_seq
-
         else:
             self.count = 0
             pred_list = []
@@ -176,7 +175,7 @@ class CoNLL09_Sent_with_Pred(object):
           frame are allowed (note that the predicate frame information is
           not totally complete or accurate)
         """
-        if self.pred_num < 0:
+        if self.pred_num == -1:
             return
 
         # Decode predictions

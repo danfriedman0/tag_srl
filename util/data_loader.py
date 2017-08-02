@@ -85,7 +85,11 @@ def batch_producer(batch_size, vocabs, fn_txt, fn_preds, fn_stags, train=True):
     """
     sents = []
     for sent in conll09_generator(fn_txt, fn_preds, fn_stags):
-        sents.append(sent)
+        # During training, skip sentences without predicates
+        # (but include them during testing to make it simpler to write
+        # predictions to file)
+        if sent.pred is not None or not train:
+            sents.append(sent)
         if len(sents) == batch_size:
             yield sents, make_batch(sents, vocabs, train)
             sents = []
