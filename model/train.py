@@ -204,7 +204,7 @@ def train(args):
                 print('-' * 78)
                 print('Running evaluation script...')
                 labeled_f1, unlabeled_f1 = run_evaluation_script(
-                    fn_text_valid, fn_sys)
+                    fn_txt_valid, fn_sys)
                 print('Labeled F1:    {0:.2f}'.format(labeled_f1))
                 print('Unlabeled F1:  {0:.2f}'.format(unlabeled_f1))
 

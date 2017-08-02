@@ -23,16 +23,17 @@ parser.add_argument("-rl", "--restrict_labels", dest="restrict_labels",
 
 
 def test(args):
-    fn_valid = 'data/conll09/pred/{}.tag'.format(args.data)
-    fn_gold = 'data/conll09/gold/{}.txt'.format(args.data)
-    fn_sys = 'output/predictions/{}.txt'.format(args.data)
-    model_dir = args.model_dir
-    
-    vocabs = vocab.get_vocabs()
-
+    model_dir = args.model_dir    
     with open(os.path.join(model_dir, 'args.pkl'), 'r') as f:
         model_args = pickle.load(f)
-    # model_args.restrict_labels = args.restrict_labels
+        
+    fn_txt_valid = 'data/conll09/{}.txt'.format(args.data)
+    fn_preds_valid = 'data/conll09/pred/{}_predicates.txt'.format(args.data)
+    fn_stags_valid = 'data/conll09/pred/{}_stags_{}.txt'.format(
+        args.data, model_args.stag_type)
+    fn_sys = 'output/predictions/{}.txt'.format(args.data)
+    
+    vocabs = vocab.get_vocabs(model_args.stag_type)
 
     with tf.Graph().as_default():
         tf.set_random_seed(model_args.seed)
@@ -49,13 +50,15 @@ def test(args):
 
             print('-' * 78)
             print('Validating...')
-            valid_loss = model.run_testing_epoch(session, vocabs,
-                                                 fn_valid, fn_sys)
+            valid_loss = model.run_testing_epoch(
+                session, vocabs, fn_txt_valid, fn_preds_valid,
+                fn_stags_valid, fn_sys)
             print('Validation loss: {}'.format(valid_loss))
 
             print('-' * 78)
             print('Running evaluation script...')
-            labeled_f1, unlabeled_f1 = run_evaluation_script(fn_gold, fn_sys)
+            labeled_f1, unlabeled_f1 = run_evaluation_script(
+                fn_txt_valid, fn_sys)
             print('Labeled F1:    {0:.2f}'.format(labeled_f1))
             print('Unlabeled F1:  {0:.2f}'.format(unlabeled_f1))
 
