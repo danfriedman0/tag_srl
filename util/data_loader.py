@@ -69,10 +69,7 @@ def make_batch(sents, vocabs, train):
     words = make_batch_field_sequence(sents, 'words',
                                       seq_length, vocabs['words'],
                                       use_dropout=False)
-    if train:
-        freqs = make_batch_freqs(sents, seq_length, vocabs['words'])
-    else:
-        freqs = np.zeros((len(sents), seq_length), dtype=np.int32)
+    freqs = make_batch_freqs(sents, seq_length, vocabs['words'])
     pos = make_batch_field_sequence(sents, 'pos',
                                     seq_length, vocabs['pos'])
     lemmas = make_batch_field_sequence(sents, 'lemmas',

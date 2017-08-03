@@ -93,21 +93,19 @@ def fully_connected_layer(
             result = nonlinearity(result)
         return result
 
-def word_dropout(words, freqs, alpha, unk_idx):
+def word_dropout(words, freqs, alpha, unk_idx, use_dropout):
     """
     Replace words with UNK token with probability
       alpha / (freq(word) + alpha)
     """
-
-    # Replace dropout words with 0 token
-    probs = 1 - (alpha / (tf.cast(freqs, tf.float32) + alpha))
+    # Get dropout mask
+    probs = alpha / (tf.cast(freqs, tf.float32) + alpha)
     probs += tf.random_uniform(tf.shape(probs), dtype=tf.float32)
-    mask = tf.cast(tf.floor(probs), tf.int32)
-    words *= mask
+    probs *= use_dropout
+    mask = 1 - tf.cast(tf.floor(probs), tf.int32)
 
-    # Add unk tokens
-    unk_mask = -1 * (mask - 1)
-    words += unk_idx * unk_mask
+    # Apply mask
+    words *= mask
+    words += unk_idx * (1 - mask)
 
     return words
-    

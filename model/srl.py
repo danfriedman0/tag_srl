@@ -50,7 +50,8 @@ class SRL_Model(object):
             words=words_placeholder,
             freqs=freqs_placeholder,
             alpha=args.alpha,
-            unk_idx=vocabs['words'].unk_idx)
+            unk_idx=vocabs['words'].unk_idx,
+            use_dropout=use_dropout_placeholder)
 
         ## Trainable word embeddings
         word_embeddings = layers.embed_inputs(
