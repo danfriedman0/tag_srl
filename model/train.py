@@ -92,6 +92,9 @@ parser.add_argument("--seed",
 parser.add_argument("--use_tf_lstm",
                     help="Use default tensorflow LSTM implementation",
                     action="store_true", default=False)
+parser.add_argument("--alpha",
+                    help="alpha parameter for word dropout",
+                    default=0.25, type=float)
 parser.add_argument("--debug",
                     help="Use a smaller configuration for debugging",
                     action="store_true", default=False)
@@ -124,6 +127,7 @@ class Debug_Args(object):
         self.use_gold_stags = True
         self.use_stag_features = True
         self.stag_feature_embed_size = 8
+        self.alpha = 0.25
     
 
 def train(args):

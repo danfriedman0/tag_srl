@@ -22,7 +22,7 @@ def make_batch_labels_masks(sents, vocab):
 
 def make_batch_field_sequence(sents, field, seq_length, vocab,
                               use_dropout=False):
-    data = np.zeros((len(sents), seq_length), dtype=np.float32)
+    data = np.zeros((len(sents), seq_length), dtype=np.int32)
     for i, sent in enumerate(sents):
         words = getattr(sent, field)
         data[i, :len(words)] = vocab.encode_sequence(words, use_dropout)
@@ -37,12 +37,20 @@ def make_batch_field_single(sents, field, vocab=None):
             val = vocab.encode(val)
         data[i] = val
     return data
+
+
+def make_batch_freqs(sents, seq_length, vocab):
+    data = np.zeros((len(sents), seq_length), dtype=np.int32)
+    for i, sent in enumerate(sents):
+        data[i, :len(sent)] = vocab.get_freqs(sent.words)
+    return data
     
             
 def make_batch(sents, vocabs, train):
     """
     A batch contains seven things:
       words_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
+      freqs_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
       pos_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
       lemmas_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
       preds_placeholder = tf.placeholder(tf.int32, shape=(batch_size,))
@@ -60,7 +68,11 @@ def make_batch(sents, vocabs, train):
     seq_length = max(len(sent) for sent in sents)
     words = make_batch_field_sequence(sents, 'words',
                                       seq_length, vocabs['words'],
-                                      use_dropout=train)
+                                      use_dropout=False)
+    if train:
+        freqs = make_batch_freqs(sents, seq_length, vocabs['words'])
+    else:
+        freqs = np.zeros((len(sents), seq_length), dtype=np.int32)
     pos = make_batch_field_sequence(sents, 'pos',
                                     seq_length, vocabs['pos'])
     lemmas = make_batch_field_sequence(sents, 'lemmas',
@@ -72,7 +84,7 @@ def make_batch(sents, vocabs, train):
     stags = make_batch_field_sequence(sents, 'stags',
                                       seq_length, vocabs['stags'])
     seq_lengths = make_batch_field_single(sents, 'length')
-    return (words, pos, lemmas, preds, preds_idx,
+    return (words, freqs, pos, lemmas, preds, preds_idx,
             labels, stags, seq_lengths)
 
     

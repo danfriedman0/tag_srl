@@ -40,6 +40,8 @@ class Vocab(object):
             self.idx_to_word[len(self.idx_to_word)] = self.unk
 
         self.word_to_idx = {w: i for i, w in self.idx_to_word.iteritems()}
+        if self.unk is not None:
+            self.unk_idx = self.word_to_idx[self.unk]
 
         self.size = len(self.idx_to_word)
 
@@ -59,6 +61,15 @@ class Vocab(object):
             if np.random.random() < drop_prob:
                 word = self.unk
         return self.word_to_idx[word]
+
+    def get_freqs(self, words):
+        freqs = []
+        for word in words:
+            if word in self.counts:
+                freqs.append(self.counts[word])
+            else:
+                freqs.append(0)
+        return freqs
 
     def encode_sequence(self, words, use_dropout=False):
         return [self.encode(word, use_dropout) for word in words]

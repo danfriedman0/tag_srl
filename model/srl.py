@@ -31,6 +31,7 @@ class SRL_Model(object):
         ## stags_placeholder: a UD supertag for each word
         ## use_dropout_placeholder: 0.0 or 1.0, whether or not to use dropout
         words_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
+        freqs_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
         pos_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
         lemmas_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
         preds_placeholder = tf.placeholder(tf.int32, shape=(batch_size,))
@@ -44,9 +45,16 @@ class SRL_Model(object):
 
         # Word representation
 
+        ## Word dropout
+        words = layers.word_dropout(
+            words=words_placeholder,
+            freqs=freqs_placeholder,
+            alpha=args.alpha,
+            unk_idx=vocabs['words'].unk_idx)
+
         ## Trainable word embeddings
         word_embeddings = layers.embed_inputs(
-            raw_inputs=words_placeholder,
+            raw_inputs=words,
             vocab_size=vocabs['words'].size,
             embed_size=args.word_embed_size,
             name='word_embedding')
@@ -236,6 +244,7 @@ class SRL_Model(object):
 
         # Add everything to the model
         self.words_placeholder = words_placeholder
+        self.freqs_placeholder = freqs_placeholder
         self.pos_placeholder = pos_placeholder
         self.lemmas_placeholder = lemmas_placeholder
         self.preds_placeholder = preds_placeholder
@@ -254,10 +263,11 @@ class SRL_Model(object):
 
 
     def batch_to_feed(self, batch):
-        (words, pos, lemmas, preds, preds_idx,
+        (words, freqs, pos, lemmas, preds, preds_idx,
          labels, stags, seq_lengths) = batch
         feed_dict = {
             self.words_placeholder: words,
+            self.freqs_placeholder: freqs,
             self.pos_placeholder: pos,
             self.lemmas_placeholder: lemmas,
             self.preds_placeholder: preds,
