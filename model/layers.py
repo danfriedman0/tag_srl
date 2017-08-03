@@ -100,7 +100,7 @@ def word_dropout(words, freqs, alpha, unk_idx):
     """
 
     # Replace dropout words with 0 token
-    probs = alpha / (tf.cast(freqs, tf.float32) + alpha)
+    probs = 1 - (alpha / (tf.cast(freqs, tf.float32) + alpha))
     probs += tf.random_uniform(tf.shape(probs), dtype=tf.float32)
     mask = tf.cast(tf.floor(probs), tf.int32)
     words *= mask
