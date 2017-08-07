@@ -13,12 +13,11 @@ import collections
 class LSTMCell(object):
     def set_dropout_mask(self):
         # dropout mask to apply recurrent dropout to lstm state
-        ones = tf.ones(self.zero_state.shape, dtype=tf.float32)
-        self.dropout_mask = tf.nn.dropout(ones, keep_prob=self.dropout)
+        self.dropout_mask = tf.nn.dropout(self.dropout_ones,
+                                          keep_prob=self.dropout)
 
     
-    def __init__(self, input_size, state_size, batch_size,
-                 dropout=1.0, name='lstm'):
+    def __init__(self, input_size, state_size, batch_size, dropout=1.0):
         self.Wx_shape = (input_size, 4 * state_size)
         self.Wh_shape = (state_size, 4 * state_size)
         self.W_init = tf.random_uniform_initializer(-0.08, 0.08)
@@ -35,6 +34,7 @@ class LSTMCell(object):
         self.zero_state = tf.stack([c_init, h_init])
 
         self.dropout = dropout
+        self.dropout_ones = tf.ones((batch_size, state_size), dtype=tf.float32)
         self.set_dropout_mask()
 
         
@@ -63,6 +63,7 @@ class LSTMCell(object):
 
         c_new = f * c_prev + i * cn
         h_new = o * tf.tanh(c_new)
+        h_new *= self.dropout_mask
 
         return tf.stack([c_new, h_new])
 
@@ -85,8 +86,7 @@ class HighwayLSTMCell(LSTMCell):
         https://homes.cs.washington.edu/~luheng/files/acl2017_hllz.pdf,
         https://github.com/luheng/deep_srl
     """
-    def __init__(self, input_size, state_size, batch_size,
-                 dropout=1.0, name='lstm'):
+    def __init__(self, input_size, state_size, batch_size, dropout=1.0):
         self.state_size = state_size
         self.Wx_shape = (input_size, 6 * state_size)
         self.Wh_shape = (state_size, 5 * state_size)
@@ -103,8 +103,9 @@ class HighwayLSTMCell(LSTMCell):
         c_init = tf.zeros((batch_size, state_size), dtype=tf.float32)
         h_init = tf.zeros((batch_size, state_size), dtype=tf.float32)
         self.zero_state = tf.stack([c_init, h_init])
-
+        
         self.dropout = dropout
+        self.dropout_ones = tf.ones((batch_size, state_size), dtype=tf.float32)
         self.set_dropout_mask()
 
         
@@ -139,6 +140,7 @@ class HighwayLSTMCell(LSTMCell):
 
         c_new = f * c_prev + i * cn
         h_new = t * o * tf.tanh(c_new) + (1 - t) * xc
+        h_new *= self.dropout_mask
 
         return tf.stack([c_new, h_new])
     
@@ -146,10 +148,12 @@ class HighwayLSTMCell(LSTMCell):
 
 class LSTM(object):
     def __init__(self, cell, input_size, state_size, batch_size,
-                 num_layers, dropout):
-        self.cells = [cell(input_size, state_size, batch_size)]
+                 num_layers, dropout, recurrent_dropout):
+        self.cells = [cell(
+            input_size, state_size, batch_size, recurrent_dropout)]
         for _ in xrange(num_layers - 1):
-            self.cells.append(cell(state_size, state_size, batch_size))
+            self.cells.append(
+                cell(state_size, state_size, batch_size, recurrent_dropout))
         self.zero_state = tf.stack([cell.zero_state for cell in self.cells])
         self.dropout = dropout
 
@@ -167,10 +171,12 @@ class LSTM(object):
         
 class BiLSTM(object):
     def __init__(self, cell, input_size, state_size, batch_size,
-                 num_layers, dropout):
-        self.cells = [cell(input_size, state_size, batch_size)]
+                 num_layers, dropout, recurrent_dropout):
+        self.cells = [cell(
+            input_size, state_size, batch_size, recurrent_dropout)]
         for _ in xrange(num_layers - 1):
-            self.cells.append(cell(2 * state_size, state_size, batch_size))
+            self.cells.append(cell(
+                2 * state_size, state_size, batch_size, recurrent_dropout))
         self.zero_state = tf.stack([c.zero_state for c in self.cells])
         self.dropout = dropout
         self.noise_shape = (1, batch_size, 2 * state_size)

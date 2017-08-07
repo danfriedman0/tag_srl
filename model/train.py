@@ -42,7 +42,10 @@ parser.add_argument("--num_layers",
                     help="Number of layers in the BiLSTM",
                     default=4, type=int)
 parser.add_argument("--dropout",
-                    help="Dropout probability (between LSTM layers)",
+                    help="Dropout keep probability (between LSTM layers)",
+                    default=1.0, type=float)
+parser.add_argument("--recurrent_dropout",
+                    help="Dropout keep probability (between LSTM cells)",
                     default=1.0, type=float)
 parser.add_argument("--use_word_dropout",
                     help="Use word dropout",
@@ -112,6 +115,7 @@ class Debug_Args(object):
         self.batch_size = 10
         self.num_layers = 2
         self.dropout = 0.7
+        self.recurrent_dropout = 0.9
         self.learning_rate = 0.01
         self.role_embed_size = 8
         self.output_lemma_embed_size = 12
@@ -168,6 +172,8 @@ def train(args):
             model_suffix += 'f{}'.format(args.stag_feature_embed_size)
     if args.dropout < 1.0:
         model_suffix += '_dr{}'.format(args.dropout)
+    if args.recurrent_dropout < 1.0:
+        model_suffix += '_rdr{}'.format(args.recurrent_dropout)
     if args.use_word_dropout:
         model_suffix += '_wdr'
     if args.use_basic_classifier:

@@ -139,6 +139,8 @@ class SRL_Model(object):
         ## use_dropout_placeholder is 0 or 1, so this just turns dropout
         ## on or off
         dropout = 1.0 - (1.0 - args.dropout) * use_dropout_placeholder
+        recurrent_dropout = (1.0 - (1.0 - args.recurrent_dropout) *
+                             use_dropout_placeholder)
 
         if args.use_highway_lstm:
             cell = lstm.HighwayLSTMCell
@@ -151,7 +153,8 @@ class SRL_Model(object):
             state_size=args.state_size,
             batch_size=args.batch_size,
             num_layers=args.num_layers,
-            dropout=dropout)
+            dropout=dropout,
+            recurrent_dropout=recurrent_dropout)
         
         lstm_outputs = bilstm(lstm_inputs)
 
