@@ -10,14 +10,15 @@ import tensorflow as tf
 import collections
 
 
-class LSTMCell:
+class LSTMCell(object):
     def set_dropout_mask(self):
         # dropout mask to apply recurrent dropout to lstm state
         ones = tf.ones(self.zero_state.shape, dtype=tf.float32)
         self.dropout_mask = tf.nn.dropout(ones, keep_prob=self.dropout)
 
     
-    def __init__(self, input_size, state_size, batch_size, dropout=1.0):
+    def __init__(self, input_size, state_size, batch_size,
+                 dropout=1.0, name='lstm'):
         self.Wx_shape = (input_size, 4 * state_size)
         self.Wh_shape = (state_size, 4 * state_size)
         self.W_init = tf.random_uniform_initializer(-0.08, 0.08)
@@ -75,12 +76,80 @@ class LSTMCell:
         return outputs
 
 
-class LSTM:
+class HighwayLSTMCell(LSTMCell):
+    """
+    LSTM cell with highway connections.
+    See
+      Srivastava et al., 2015, https://arxiv.org/abs/1507.06228
+      He et al., 2017,
+        https://homes.cs.washington.edu/~luheng/files/acl2017_hllz.pdf,
+        https://github.com/luheng/deep_srl
+    """
     def __init__(self, input_size, state_size, batch_size,
+                 dropout=1.0, name='lstm'):
+        self.state_size = state_size
+        self.Wx_shape = (input_size, 6 * state_size)
+        self.Wh_shape = (state_size, 5 * state_size)
+        self.W_init = tf.random_uniform_initializer(-0.08, 0.08)
+
+        # Initialize forget gate bias to 1 to encourage remembering.
+        self.b_shape = (5 * state_size,)
+        init_b = ([0 for _ in range(state_size)] +
+                  [1 for _ in range(state_size)] +
+                  [0 for _ in range(3 * state_size)])
+        self.b_init = tf.constant_initializer(init_b)
+
+        # Define the zero state
+        c_init = tf.zeros((batch_size, state_size), dtype=tf.float32)
+        h_init = tf.zeros((batch_size, state_size), dtype=tf.float32)
+        self.zero_state = tf.stack([c_init, h_init])
+
+        self.dropout = dropout
+        self.set_dropout_mask()
+
+        
+    def __call__(self, state, x):
+        Wx = tf.get_variable("Wx", shape=self.Wx_shape,
+                             initializer=self.W_init)
+        Wh = tf.get_variable("Wh", shape=self.Wh_shape,
+                             initializer=self.W_init)
+        b = tf.get_variable("b", shape=self.b_shape,
+                            initializer=self.b_init)
+
+        c_prev, h_prev = tf.unstack(state)
+
+        # Do all the linear combinations in one batch and then split
+        # (xc = matmul(W_c, x) = carry gate)
+        x_sums = tf.matmul(x, Wx, name='x_sums')
+        x_sum, xc = tf.split(x_sums,
+                             [self.state_size * 5, self.state_size],
+                             axis=1)
+        h_sum = tf.matmul(h_prev, Wh, name='h_sum')
+        all_sums = x_sum + h_sum + b
+
+        s1, s2, s3, s4, s5 = tf.split(all_sums, 5, axis=1)
+
+        # i = input gate, f = forget gate, cn = candidate gate,
+        # o = output gate, t = transform gate
+        i = tf.sigmoid(s1)
+        f = tf.sigmoid(s2)
+        cn = tf.tanh(s3)
+        o = tf.sigmoid(s4)
+        t = tf.sigmoid(s5)
+
+        c_new = f * c_prev + i * cn
+        h_new = t * o * tf.tanh(c_new) + (1 - t) * xc
+
+        return tf.stack([c_new, h_new])
+    
+
+
+class LSTM(object):
+    def __init__(self, cell, input_size, state_size, batch_size,
                  num_layers, dropout):
-        self.cells = [LSTMCell(input_size, state_size, batch_size)]
+        self.cells = [cell(input_size, state_size, batch_size)]
         for _ in xrange(num_layers - 1):
-            self.cells.append(LSTMCell(state_size, state_size, batch_size))
+            self.cells.append(cell(state_size, state_size, batch_size))
         self.zero_state = tf.stack([cell.zero_state for cell in self.cells])
         self.dropout = dropout
 
@@ -96,13 +165,13 @@ class LSTM:
         return next_inputs
         
         
-class BiLSTM:
-    def __init__(self, input_size, state_size, batch_size,
+class BiLSTM(object):
+    def __init__(self, cell, input_size, state_size, batch_size,
                  num_layers, dropout):
-        self.cells = [LSTMCell(input_size, state_size, batch_size)]
+        self.cells = [cell(input_size, state_size, batch_size)]
         for _ in xrange(num_layers - 1):
-            self.cells.append(LSTMCell(2 * state_size, state_size, batch_size))
-        self.zero_state = tf.stack([cell.zero_state for cell in self.cells])
+            self.cells.append(cell(2 * state_size, state_size, batch_size))
+        self.zero_state = tf.stack([c.zero_state for c in self.cells])
         self.dropout = dropout
         self.noise_shape = (1, batch_size, 2 * state_size)
 
@@ -122,6 +191,7 @@ class BiLSTM:
                 outputs = tf.concat([f_outputs, b_outputs], axis=2)
                 next_inputs = tf.nn.dropout(outputs, keep_prob=self.dropout)
         return next_inputs
+
 
     
 

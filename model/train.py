@@ -92,9 +92,9 @@ parser.add_argument("--early_stopping",
 parser.add_argument("--seed",
                     help="Random seed for tensorflow and numpy",
                     default=89, type=int)
-parser.add_argument("--use_tf_lstm",
-                    help="Use default tensorflow LSTM implementation",
-                    action="store_true", default=False)
+parser.add_argument("--use_highway_lstm",
+                    help="Use LSTM with highway connections",
+                    action="store_true")
 parser.add_argument("--alpha",
                     help="alpha parameter for word dropout",
                     default=0.25, type=float)
@@ -123,7 +123,6 @@ class Debug_Args(object):
         self.use_basic_classifier = False
         self.early_stopping = 3
         self.seed = 89
-        self.use_tf_lstm = False
         self.training_split = 'gold'
         self.testing_split = 'pred'
         self.stag_type = 'model1'
@@ -132,6 +131,7 @@ class Debug_Args(object):
         self.stag_feature_embed_size = 8
         self.alpha = 0.25
         self.use_word_dropout = True
+        self.use_highway_lstm = True
     
 
 def train(args):
@@ -172,8 +172,8 @@ def train(args):
         model_suffix += '_wdr'
     if args.use_basic_classifier:
         model_suffix += '_bc'
-    if args.use_tf_lstm:
-        model_suffix += '_tf'
+    if args.use_highway_lstm:
+        model_suffix += '_hw'
     if args.seed != 89:
         model_suffix += '_s{}'.format(args.seed)
     fn_sys = 'output/predictions/dev{}.txt'.format(model_suffix)

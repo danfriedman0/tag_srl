@@ -13,6 +13,16 @@ from util.data_loader import batch_producer
 from tensorflow.python.client import timeline
 from timeit import default_timer as timer
 
+import traceback
+
+class Redirect(object):
+    def __init__(self):    
+        self.stdout = sys.stdout
+    def write(self, s):
+        pass
+
+
+
 class SRL_Model(object):
     def __init__(self, vocabs, args):
         self.args = args
@@ -118,12 +128,6 @@ class SRL_Model(object):
         
         ## Concatenate all the word features on the last dimension
         inputs = tf.concat(word_features, axis=2)
-        # input_size = (args.word_embed_size +
-        #               pretr_embed_size +
-        #               args.pos_embed_size +
-        #               args.lemma_embed_size + 1)
-        # if args.use_stags:
-        #     input_size += args.stag_embed_size
         input_size = inputs.shape[2]
         
         # BiLSTM
@@ -135,8 +139,14 @@ class SRL_Model(object):
         ## use_dropout_placeholder is 0 or 1, so this just turns dropout
         ## on or off
         dropout = 1.0 - (1.0 - args.dropout) * use_dropout_placeholder
-        
+
+        if args.use_highway_lstm:
+            cell = lstm.HighwayLSTMCell
+        else:
+            cell = lstm.LSTMCell
+
         bilstm = lstm.BiLSTM(
+            cell=cell,
             input_size=input_size,
             state_size=args.state_size,
             batch_size=args.batch_size,
@@ -240,7 +250,14 @@ class SRL_Model(object):
 
         ## Clip gradients (https://stackoverflow.com/a/36501922)
         optimizer = tf.train.AdamOptimizer()
+
+        ## compute_gradients prints some of the split gradients to stdout
+        ## for whatever reason, so capture that here
+        redirect = Redirect()
+        sys.stdout = redirect
         gvs = optimizer.compute_gradients(loss)
+        sys.stdout = redirect.stdout
+
         clipped_gvs = [(tf.clip_by_value(grad, -1., 1.), var)
                        for grad, var in gvs]
         train_op = optimizer.apply_gradients(clipped_gvs)
