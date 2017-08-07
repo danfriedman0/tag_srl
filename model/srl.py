@@ -46,12 +46,15 @@ class SRL_Model(object):
         # Word representation
 
         ## Word dropout
-        words = layers.word_dropout(
-            words=words_placeholder,
-            freqs=freqs_placeholder,
-            alpha=args.alpha,
-            unk_idx=vocabs['words'].unk_idx,
-            use_dropout=use_dropout_placeholder)
+        if args.use_word_dropout:
+            words = layers.word_dropout(
+                words=words_placeholder,
+                freqs=freqs_placeholder,
+                alpha=args.alpha,
+                unk_idx=vocabs['words'].unk_idx,
+                use_dropout=use_dropout_placeholder)
+        else:
+            words = words_placeholder
 
         ## Trainable word embeddings
         word_embeddings = layers.embed_inputs(
@@ -65,7 +68,7 @@ class SRL_Model(object):
             vocabs['words'].idx_to_word)
         pretr_embed_size = pretr_word_vectors.shape[1]
         pretr_word_embeddings = layers.embed_inputs(
-            raw_inputs=words_placeholder,
+            raw_inputs=words,
             vocab_size=vocabs['words'].size,
             embed_size=pretr_embed_size,
             name='pretr_word_embedding',
@@ -290,7 +293,21 @@ class SRL_Model(object):
         feed_dict = self.batch_to_feed(batch)
         feed_dict[self.use_dropout_placeholder] = 1.0
         fetches = [self.loss, self.train_op]
+
+        # options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+        # run_metadata = tf.RunMetadata()
+        
         loss, _ = session.run(fetches, feed_dict=feed_dict)
+        # loss, _ = session.run(fetches,
+        #                       feed_dict=feed_dict,
+        #                       options=options,
+        #                       run_metadata=run_metadata)
+        
+        # fetched_timeline = timeline.Timeline(run_metadata.step_stats)
+        # chrome_trace = fetched_timeline.generate_chrome_trace_format()
+        # with open('timeline.json', 'w') as f:
+        #     f.write(chrome_trace)
+        
         return loss
 
 

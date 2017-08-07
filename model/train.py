@@ -44,6 +44,9 @@ parser.add_argument("--num_layers",
 parser.add_argument("--dropout",
                     help="Dropout probability (between LSTM layers)",
                     default=1.0, type=float)
+parser.add_argument("--use_word_dropout",
+                    help="Use word dropout",
+                    action="store_true")
 parser.add_argument("--learning_rate",
                     help="Learning rate",
                     default=0.01, type=float)
@@ -128,6 +131,7 @@ class Debug_Args(object):
         self.use_stag_features = True
         self.stag_feature_embed_size = 8
         self.alpha = 0.25
+        self.use_word_dropout = True
     
 
 def train(args):
@@ -164,6 +168,8 @@ def train(args):
             model_suffix += 'f{}'.format(args.stag_feature_embed_size)
     if args.dropout < 1.0:
         model_suffix += '_dr{}'.format(args.dropout)
+    if args.use_word_dropout:
+        model_suffix += '_wdr'
     if args.use_basic_classifier:
         model_suffix += '_bc'
     if args.use_tf_lstm:
