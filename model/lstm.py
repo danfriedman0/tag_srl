@@ -18,10 +18,12 @@ class LSTMCell(object):
 
     
     def __init__(self, input_size, state_size, batch_size, dropout=1.0):
-        self.Wx_init = initialize.get_block_orthonormal_matrix(
-            input_size, [state_size] * 4)
-        self.Wh_init = initialize.get_block_orthonormal_matrix(
-            state_size, [state_size] * 4)
+        self.Wx_shape = (input_size, state_size * 4)
+        self.Wh_shape = (state_size, state_size * 4)
+        self.Wx_init = initialize.block_orth_normal_initializer(
+            [input_size], [state_size] * 4)
+        self.Wh_init = initialize.block_orth_normal_initializer(
+            [state_size], [state_size] * 4)
 
         self.b_shape = (4 * state_size,)
         init_b = ([0 for _ in range(state_size)] +
@@ -40,8 +42,10 @@ class LSTMCell(object):
 
         
     def __call__(self, state, x):
-        Wx = tf.get_variable("Wx", initializer=self.Wx_init)
-        Wh = tf.get_variable("Wh", initializer=self.Wh_init)
+        Wx = tf.get_variable("Wx", shape=self.Wx_shape,
+                             initializer=self.Wx_init)
+        Wh = tf.get_variable("Wh", shape=self.Wx_shape,
+                             initializer=self.Wh_init)
         b = tf.get_variable("b", shape=self.b_shape,
                             initializer=self.b_init)
 
@@ -87,10 +91,12 @@ class HighwayLSTMCell(LSTMCell):
     """
     def __init__(self, input_size, state_size, batch_size, dropout=1.0):
         self.state_size = state_size
-        self.Wx_init = initialize.get_block_orthonormal_matrix(
-            input_size, [state_size] * 6)
-        self.Wh_init = initialize.get_block_orthonormal_matrix(
-            state_size, [state_size] * 5)
+        self.Wx_shape = (input_size, state_size * 6)
+        self.Wh_shape = (state_size, state_size * 5)
+        self.Wx_init = initialize.block_orth_normal_initializer(
+            [input_size], [state_size] * 6)
+        self.Wh_init = initialize.block_orth_normal_initializer(
+            [state_size], [state_size] * 5)
 
         # Initialize forget gate bias to 1 to encourage remembering.
         self.b_shape = (5 * state_size,)
@@ -110,8 +116,10 @@ class HighwayLSTMCell(LSTMCell):
 
         
     def __call__(self, state, x):
-        Wx = tf.get_variable("Wx", initializer=self.Wx_init)
-        Wh = tf.get_variable("Wh", initializer=self.Wh_init)
+        Wx = tf.get_variable("Wx", shape=self.Wx_shape,
+                             initializer=self.Wx_init)
+        Wh = tf.get_variable("Wh", shape=self.Wx_shape,
+                             initializer=self.Wh_init)
         b = tf.get_variable("b", shape=self.b_shape,
                             initializer=self.b_init)
 
