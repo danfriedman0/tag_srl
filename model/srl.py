@@ -22,7 +22,6 @@ class Redirect(object):
         pass
 
 
-
 class SRL_Model(object):
     def __init__(self, vocabs, args):
         self.args = args

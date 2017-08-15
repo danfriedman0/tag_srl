@@ -78,8 +78,11 @@ def word_dropout(words, freqs, alpha, unk_idx, use_dropout):
     probs *= use_dropout
     mask = 1 - tf.cast(tf.floor(probs), tf.int32)
 
-    # Apply mask
-    words *= mask
-    words += unk_idx * (1 - mask)
+    # Apply dropout and replace dropped words with unk_idx
+    # (but make sure not to replace trailing zeros, which are there
+    # for zero padding)
+    zeros_mask = tf.cast(tf.greater(words, 0), tf.int32)
+    words = tf.multiply(words, mask)
+    words += unk_idx * (1 - mask) * zeros_mask
 
     return words
