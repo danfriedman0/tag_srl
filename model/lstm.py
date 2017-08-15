@@ -25,9 +25,11 @@ class LSTMCell(object):
         #     [input_size], [state_size] * 4, factor=0.08)
         # self.Wh_init = initialize.block_orth_normal_initializer(
         #     [state_size], [state_size] * 4, factor=0.08)
-        init_size = 1 / math.sqrt(state_size)
-        self.Wx_init = tf.random_uniform_initializer(-1 * init_size, init_size)
-        self.Wh_init = tf.random_uniform_initializer(-1 * init_size, init_size)
+        # init_size = 1 / math.sqrt(state_size)
+        # self.Wx_init = tf.random_uniform_initializer(-1 * init_size, init_size)
+        # self.Wh_init = tf.random_uniform_initializer(-1 * init_size, init_size)
+        self.Wx_init = tf.random_normal_initializer(stddev=0.1)
+        self.Wh_init = tf.random_normal_initializer(stddev=0.1)
 
         self.b_shape = (4 * state_size,)
         init_b = ([0 for _ in range(state_size)] +
