@@ -173,7 +173,7 @@ class SRL_Model(object):
 
         ## Concatenate predicate state with all the other output states.
         ## (It is possible to do this more efficiently without tiling but
-        ## it would be pretty complicated.)
+        ## it would be more complicated.)
         tiled_pred_outputs = tf.tile(tf.expand_dims(pred_outputs, 1),
                                      (1, seq_length, 1))
         combined_outputs = tf.concat([outputs, tiled_pred_outputs], axis=2)
@@ -193,6 +193,7 @@ class SRL_Model(object):
             role_embeddings = tf.get_variable(
                 'role_embeddings',
                 shape=(num_roles, args.role_embed_size),
+                initializer=tf.orthogonal_initializer(),
                 dtype=tf.float32)
             ## (batch_size, p_embed_size)
             pred_embeddings = layers.embed_inputs(
@@ -251,8 +252,12 @@ class SRL_Model(object):
             logits=logits)
         loss = tf.reduce_mean(cross_ent)
 
-        ## Clip gradients (https://stackoverflow.com/a/36501922)
-        optimizer = tf.train.AdamOptimizer()
+
+        if args.optimizer == 'adadelta':
+            optimizer = tf.train.AdadeltaOptimizer()
+        else:
+            optimizer = tf.train.AdamOptimizer()
+
 
         ## compute_gradients prints some of the split gradients to stdout
         ## for whatever reason, so capture that here
@@ -261,6 +266,7 @@ class SRL_Model(object):
         gvs = optimizer.compute_gradients(loss)
         sys.stdout = redirect.stdout
 
+        ## Clip gradients (https://stackoverflow.com/a/36501922)        
         clipped_gvs = [(tf.clip_by_value(grad, -1., 1.), var)
                        for grad, var in gvs]
         train_op = optimizer.apply_gradients(clipped_gvs)
@@ -288,7 +294,7 @@ class SRL_Model(object):
 
     def batch_to_feed(self, batch):
         (words, freqs, pos, lemmas, preds, preds_idx,
-         labels, stags, seq_lengths) = batch
+         labels, labels_mask, stags, seq_lengths) = batch
         feed_dict = {
             self.words_placeholder: words,
             self.freqs_placeholder: freqs,
@@ -297,6 +303,7 @@ class SRL_Model(object):
             self.preds_placeholder: preds,
             self.preds_idx_placeholder: preds_idx,
             self.labels_placeholder: labels,
+            self.labels_mask_placeholder: labels_mask,
             self.stags_placeholder: stags,
             self.seq_lengths_placeholder: seq_lengths
         }

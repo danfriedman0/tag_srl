@@ -78,11 +78,12 @@ def make_batch(sents, vocabs, train):
     preds_idx = make_batch_field_single(sents, 'pred_idx')
     labels = make_batch_field_sequence(sents, 'labels',
                                        seq_length, vocabs['labels'])
+    labels_mask_placeholder = make_batch_labels_masks(sents, vocabs['labels'])
     stags = make_batch_field_sequence(sents, 'stags',
                                       seq_length, vocabs['stags'])
     seq_lengths = make_batch_field_single(sents, 'length')
     return (words, freqs, pos, lemmas, preds, preds_idx,
-            labels, stags, seq_lengths)
+            labels, labels_mask_placeholder, stags, seq_lengths)
 
     
 def batch_producer(batch_size, vocabs, fn_txt, fn_preds, fn_stags, train=True):

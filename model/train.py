@@ -94,13 +94,16 @@ parser.add_argument("--early_stopping",
                     default=8, type=int)
 parser.add_argument("--seed",
                     help="Random seed for tensorflow and numpy",
-                    default=89, type=int)
+                    default=47, type=int)
 parser.add_argument("--use_highway_lstm",
                     help="Use LSTM with highway connections",
                     action="store_true")
 parser.add_argument("--alpha",
                     help="alpha parameter for word dropout",
                     default=0.25, type=float)
+parser.add_argument("--optimizer",
+                    help="Choice of optimizer",
+                    choices=['adam', 'adadelta'], default='adam')
 parser.add_argument("--debug",
                     help="Use a smaller configuration for debugging",
                     action="store_true", default=False)
@@ -136,6 +139,7 @@ class Debug_Args(object):
         self.alpha = 0.25
         self.use_word_dropout = True
         self.use_highway_lstm = True
+        self.optimizer = 'adam'
     
 
 def train(args):
@@ -180,6 +184,8 @@ def train(args):
         model_suffix += '_bc'
     if args.use_highway_lstm:
         model_suffix += '_hw'
+    if args.optimizer != 'adam':
+        model_suffix += '_' + args.optimizer
     if args.seed != 89:
         model_suffix += '_s{}'.format(args.seed)
     fn_sys = 'output/predictions/dev{}.txt'.format(model_suffix)

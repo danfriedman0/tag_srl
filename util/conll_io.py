@@ -132,12 +132,13 @@ class CoNLL09_Sent_with_Pred(object):
     It has fields for words, pos, lemmas, stags, etc., and also a pointer
     to the parent CoNLL09_Sent.
     """
-    def __init__(self, sent, pred_num):
+    def __init__(self, sent, pred_num, pred_to_frame):
         self.words = sent.words
         self.pos = sent.pos
         self.lemmas = sent.lemmas
         self.stags = sent.stags
         self.length = len(self.words)
+        self.frame = []
 
         # pred_num == -1 means that this is a dummy object for a sentence
         # with no predicates
@@ -147,6 +148,9 @@ class CoNLL09_Sent_with_Pred(object):
             self.full_pred = pred_list.full_pred
             self.pred_idx = pred_list.pred_idx
             self.labels = pred_list.arg_seq
+            if self.pred in pred_to_frame:
+                self.frame = pred_to_frame[self.pred]
+            self.count = len([l for l in self.labels if l not in self.frame])
         else:
             self.count = 0
             pred_list = []
@@ -194,7 +198,11 @@ def get_pred_to_frame(fn_in='data/frames.txt'):
     with open(fn_in, 'r') as f:
         for line in f:
             parts = line.strip().split(' ')
-            pred_to_frame[parts[0]] = parts[1:]
+            if parts[0] in pred_to_frame:
+                pred_to_frame[parts[0]] = list(set(pred_to_frame[parts[0]] +
+                                                   parts[1:]))
+            else:
+                pred_to_frame[parts[0]] = parts[1:]
     return pred_to_frame
 
             
@@ -225,6 +233,7 @@ def conll09_generator(fn_txt, fn_preds, fn_stags):
     Generator for reading data in CoNLL format.
     Given a file object, yields CoNLL09_Sent_with_Pred objects.
     """
+    pred_to_frame = get_pred_to_frame()
     fs = [open(fn, 'r') for fn in [fn_txt, fn_preds, fn_stags]]
     lines = []
     for line, pred, stag in izip(*fs):
@@ -232,9 +241,9 @@ def conll09_generator(fn_txt, fn_preds, fn_stags):
             sent = CoNLL09_Sent(lines)
             lines = []
             for i in xrange(sent.num_preds):
-                yield CoNLL09_Sent_with_Pred(sent, i)
+                yield CoNLL09_Sent_with_Pred(sent, i, pred_to_frame)
             if sent.num_preds == 0:
-                yield CoNLL09_Sent_with_Pred(sent, -1)
+                yield CoNLL09_Sent_with_Pred(sent, -1, pred_to_frame)
         else:
             line = line.strip().split('\t')
             line.append(pred.strip())
@@ -244,14 +253,19 @@ def conll09_generator(fn_txt, fn_preds, fn_stags):
 
 
 def test_frames():
-    fn = 'data/conll09/pred/train.tag'
+    fn_txt = 'data/conll09/train.txt'
+    fn_preds = 'data/conll09/gold/train_predicates.txt'
+    fn_stags = 'data/conll09/pred/train_stags_model1.txt'
     count = 0
     sent_count = 0
-    with open(fn, 'r') as f:
-        for sent in conll09_generator(f):
-            if sent.count > 0:
-                sent_count += 1
-                count += sent.count
+    for sent in conll09_generator(fn_txt, fn_preds, fn_stags):
+        if sent.count > 0:
+            # print(sent.pred)
+            # print(sent.labels)
+            # print(sent.frame)
+            # return
+            sent_count += 1
+            count += sent.count
 
     print('{} sentences with errors, {} total errors'.format(sent_count,count))
 

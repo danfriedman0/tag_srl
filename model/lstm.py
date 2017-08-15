@@ -5,6 +5,7 @@
 #   https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/ops/rnn_cell_impl.py
 from __future__ import division
 
+import math
 import numpy as np
 import tensorflow as tf
 import collections
@@ -20,10 +21,13 @@ class LSTMCell(object):
     def __init__(self, input_size, state_size, batch_size, dropout=1.0):
         self.Wx_shape = (input_size, state_size * 4)
         self.Wh_shape = (state_size, state_size * 4)
-        self.Wx_init = initialize.block_orth_normal_initializer(
-            [input_size], [state_size] * 4)
-        self.Wh_init = initialize.block_orth_normal_initializer(
-            [state_size], [state_size] * 4)
+        # self.Wx_init = initialize.block_orth_normal_initializer(
+        #     [input_size], [state_size] * 4, factor=0.08)
+        # self.Wh_init = initialize.block_orth_normal_initializer(
+        #     [state_size], [state_size] * 4, factor=0.08)
+        init_size = 1 / math.sqrt(state_size)
+        self.Wx_init = tf.random_uniform_initializer(-1 * init_size, init_size)
+        self.Wh_init = tf.random_uniform_initializer(-1 * init_size, init_size)
 
         self.b_shape = (4 * state_size,)
         init_b = ([0 for _ in range(state_size)] +
@@ -44,12 +48,13 @@ class LSTMCell(object):
     def __call__(self, state, x):
         Wx = tf.get_variable("Wx", shape=self.Wx_shape,
                              initializer=self.Wx_init)
-        Wh = tf.get_variable("Wh", shape=self.Wx_shape,
+        Wh = tf.get_variable("Wh", shape=self.Wh_shape,
                              initializer=self.Wh_init)
         b = tf.get_variable("b", shape=self.b_shape,
                             initializer=self.b_init)
 
         c_prev, h_prev = tf.unstack(state)
+        h_prev *= self.dropout_mask
 
         # Do all the linear combinations in one batch and then split
         x_sum = tf.matmul(x, Wx, name='x_sum')
@@ -66,7 +71,7 @@ class LSTMCell(object):
 
         c_new = f * c_prev + i * cn
         h_new = o * tf.tanh(c_new)
-        h_new *= self.dropout_mask
+        # h_new *= self.dropout_mask
 
         return tf.stack([c_new, h_new])
 
@@ -93,10 +98,13 @@ class HighwayLSTMCell(LSTMCell):
         self.state_size = state_size
         self.Wx_shape = (input_size, state_size * 6)
         self.Wh_shape = (state_size, state_size * 5)
-        self.Wx_init = initialize.block_orth_normal_initializer(
-            [input_size], [state_size] * 6)
-        self.Wh_init = initialize.block_orth_normal_initializer(
-            [state_size], [state_size] * 5)
+        # self.Wx_init = initialize.block_orth_normal_initializer(
+        #     [input_size], [state_size] * 6)
+        # self.Wh_init = initialize.block_orth_normal_initializer(
+        #     [state_size], [state_size] * 5)
+        init_size = 1 / math.sqrt(state_size)
+        self.Wx_init = tf.random_uniform_initializer(-1 * init_size, init_size)
+        self.Wh_init = tf.random_uniform_initializer(-1 * init_size, init_size)
 
         # Initialize forget gate bias to 1 to encourage remembering.
         self.b_shape = (5 * state_size,)
@@ -118,12 +126,13 @@ class HighwayLSTMCell(LSTMCell):
     def __call__(self, state, x):
         Wx = tf.get_variable("Wx", shape=self.Wx_shape,
                              initializer=self.Wx_init)
-        Wh = tf.get_variable("Wh", shape=self.Wx_shape,
+        Wh = tf.get_variable("Wh", shape=self.Wh_shape,
                              initializer=self.Wh_init)
         b = tf.get_variable("b", shape=self.b_shape,
                             initializer=self.b_init)
 
         c_prev, h_prev = tf.unstack(state)
+        h_prev *= self.dropout_mask
 
         # Do all the linear combinations in one batch and then split
         # (xc = matmul(W_c, x) = carry gate)
@@ -146,7 +155,7 @@ class HighwayLSTMCell(LSTMCell):
 
         c_new = f * c_prev + i * cn
         h_new = t * o * tf.tanh(c_new) + (1 - t) * xc
-        h_new *= self.dropout_mask
+        # h_new *= self.dropout_mask
 
         return tf.stack([c_new, h_new])
     
