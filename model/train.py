@@ -49,7 +49,7 @@ parser.add_argument("--recurrent_dropout",
                     default=1.0, type=float)
 parser.add_argument("--use_word_dropout",
                     help="Use word dropout",
-                    action="store_true")
+                    action="store_true", default=True)
 parser.add_argument("--learning_rate",
                     help="Learning rate",
                     default=0.01, type=float)
