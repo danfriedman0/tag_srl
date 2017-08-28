@@ -86,3 +86,4 @@ def word_dropout(words, freqs, alpha, unk_idx, use_dropout):
     words += unk_idx * (1 - mask) * zeros_mask
 
     return words
+

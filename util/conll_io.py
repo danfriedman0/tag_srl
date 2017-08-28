@@ -55,6 +55,7 @@ class CoNLL09_Sent(object):
                 self.lemmas.append(line[-2].split('.')[0])
             else:
                 self.lemmas.append('_')
+        self.predicates = [line[13] for line in lines]
 
         # Add a predicate info list for each predicate in the sentence
         self.pred_lists = []
@@ -228,7 +229,7 @@ def _conll09_generator(f, only_sent=False):
             lines.append(line.strip().split('\t'))
 
             
-def conll09_generator(fn_txt, fn_preds, fn_stags):
+def conll09_generator(fn_txt, fn_preds, fn_stags, only_sent=False):
     """
     Generator for reading data in CoNLL format.
     Given a file object, yields CoNLL09_Sent_with_Pred objects.
@@ -240,6 +241,9 @@ def conll09_generator(fn_txt, fn_preds, fn_stags):
         if line == '\n':
             sent = CoNLL09_Sent(lines)
             lines = []
+            if only_sent:
+                yield sent
+                continue
             for i in xrange(sent.num_preds):
                 yield CoNLL09_Sent_with_Pred(sent, i, pred_to_frame)
             if sent.num_preds == 0:

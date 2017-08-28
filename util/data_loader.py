@@ -111,3 +111,37 @@ def batch_producer(batch_size, vocabs, fn_txt, fn_preds, fn_stags, train=True):
     if len(sents) > 0 and len(sents) < batch_size:
         sents += [sents[0] for _ in xrange(batch_size - len(sents))]
         yield sents, make_batch(sents, vocabs, train)
+
+
+
+def make_disamb_batch(sents, vocabs, train):
+    seq_length = max(len(sent) for sent in sents)
+    words = make_batch_field_sequence(sents, 'words',
+                                      seq_length, vocabs['words'],
+                                      use_dropout=False)
+    pos = make_batch_field_sequence(sents, 'pos',
+                                    seq_length, vocabs['pos'])
+    labels = make_batch_field_sequence(sents, 'predicates',
+                                       seq_length, vocabs['predicates'])
+    stags = make_batch_field_sequence(sents, 'stags',
+                                      seq_length, vocabs['stags'])
+    return words, pos, labels, stags
+    
+
+
+def disamb_batch_producer(batch_size, vocabs, fn_txt, fn_stags, train=True):
+    all_sents = [s for s in conll09_generator(
+        fn_txt, fn_stags, fn_stags, only_sent=True)]
+    if train:
+        all_sents = sorted(all_sents, key=lambda s: -len(s))
+    sents = []
+    for sent in all_sents:
+        sents.append(sent)
+        if len(sents) == batch_size:
+            yield sents, make_disamb_batch(sents, vocabs, train)
+            sents = []
+    # Fill out the last batch if the data doesn't evenly divide
+    if len(sents) > 0 and len(sents) < batch_size:
+        sents += [all_sents[i] for i in xrange(batch_size - len(sents))]
+        yield sents, make_disamb_batch(sents, vocabs, train)
+            

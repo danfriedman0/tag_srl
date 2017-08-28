@@ -16,3 +16,6 @@ def run_evaluation_script(fn_gold, fn_sys, print_output=False):
     uf1_line = [line for line in lines if line.startswith('  Unlabeled F1')][0]
     unlabeled_f1 = float(uf1_line.strip().split(' ')[-1])    
     return labeled_f1, unlabeled_f1
+
+def get_predicate_f1(fn):
+    

@@ -42,6 +42,8 @@ class Vocab(object):
         self.word_to_idx = {w: i for i, w in self.idx_to_word.iteritems()}
         if self.unk is not None:
             self.unk_idx = self.word_to_idx[self.unk]
+        else:
+            self.unk_idx = -1
 
         self.size = len(self.idx_to_word)
 
@@ -56,10 +58,10 @@ class Vocab(object):
             if self.unk is None:
                 raise KeyError("{} not found".format(word))
             word = self.unk
-        if use_dropout and word != self.unk:
-            drop_prob = self.alpha / (self.counts[word] + self.alpha)
-            if np.random.random() < drop_prob:
-                word = self.unk
+        # if use_dropout and word != self.unk:
+        #     drop_prob = self.alpha / (self.counts[word] + self.alpha)
+        #     if np.random.random() < drop_prob:
+        #         word = self.unk
         return self.word_to_idx[word]
 
     def get_freqs(self, words):
@@ -77,6 +79,9 @@ class Vocab(object):
     def decode(self, idx):
         return self.idx_to_word[idx]
 
+    def decode_sequence(self, idxs):
+        return [self.decode(idx) for idx in idxs]
+
     def __contains__(self, word):
         return word in self.word_to_idx
 
@@ -87,7 +92,7 @@ def get_vocabs(stag_type='ud'):
     Returns a dictionary of Vocab objects for words, parts of speech,
       predicate lemmas, and semantic role labels
     """
-    vocab_types = ['words', 'pos', 'lemmas', 'labels', 'stags']
+    vocab_types = ['words', 'pos', 'lemmas', 'labels', 'stags', 'predicates']
     vocabs = {}
     for vocab_type in vocab_types:
         if vocab_type == 'stags':
@@ -97,7 +102,7 @@ def get_vocabs(stag_type='ud'):
         if vocab_type == 'labels':
             zero = None
             unk = None
-        elif vocab_type == 'lemmas':
+        elif vocab_type == 'lemmas' or vocab_type == 'predicates':
             zero = '_'
             unk = '<unk>'
         else:
