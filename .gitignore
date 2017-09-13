@@ -1,5 +1,4 @@
-data/conll09/*
-data/embeddings/*
+data/*
 output/*
 *~
 *.pyc
