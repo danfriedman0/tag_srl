@@ -59,6 +59,9 @@ parser.add_argument("--max_epochs",
 parser.add_argument("--restrict_labels",
                     help="Only allow labels from a predicate's frame",
                     action="store_true", default=False)
+parser.add_argument("--language",
+                    help="Choice of language",
+                    choices=['eng'], default='eng')
 parser.add_argument("--training_split",
                     help="Train on gold or predicted predicates",
                     choices=['gold', 'pred'],
@@ -140,25 +143,28 @@ class Debug_Args(object):
         self.use_word_dropout = True
         self.use_highway_lstm = True
         self.optimizer = 'adam'
+        self.language = 'eng'
     
 
 def train(args):
     # Set the filepaths for training and validation
-    fn_txt_train = 'data/conll09/train.txt'
-    fn_preds_train = 'data/conll09/{}/train_predicates.txt'.format(
-        args.training_split)
+    fn_txt_train = 'data/{}/conll09/train.txt'.format(args.language)
+    fn_preds_train = 'data/{}/conll09/{}/train_predicates.txt'.format(
+        args.language, args.training_split)
     if args.use_stags:
-        fn_stags_train = 'data/conll09/{}/train_stags_{}.txt'.format(
+        fn_stags_train = 'data/{}/conll09/{}/train_stags_{}.txt'.format(
+            args.language,
             ('gold' if args.use_gold_stags else 'pred'),
             args.stag_type)
     else:
         fn_stags_train = fn_preds_train
         
-    fn_txt_valid = 'data/conll09/dev.txt'
-    fn_preds_valid = 'data/conll09/pred/dev_predicates.txt'
+    fn_txt_valid = 'data/{}/conll09/dev.txt'.format(args.language)
+    fn_preds_valid = 'data/{}/conll09/pred/dev_predicates.txt'.format(
+        args.language)
     if args.use_stags:
-        fn_stags_valid = 'data/conll09/pred/dev_stags_{}.txt'.format(
-            args.stag_type)
+        fn_stags_valid = 'data/{}/conll09/pred/dev_stags_{}.txt'.format(
+            args.language, args.stag_type)
     else:
         fn_stags_valid = fn_preds_valid
     
@@ -167,6 +173,8 @@ def train(args):
     model_suffix = '_'
     model_suffix += 'g' if args.training_split == 'gold' else 'p'
     model_suffix += 'g' if args.testing_split == 'gold' else 'p'
+    if args.language != 'eng':
+        model_suffix += '_' + args.language
     if args.restrict_labels:
         model_suffix += '_rl'
     if args.use_stags:
@@ -198,7 +206,7 @@ def train(args):
     with open(model_dir + 'args.pkl', 'w') as f:
         pickle.dump(args, f)
 
-    vocabs = vocab.get_vocabs(args.stag_type)
+    vocabs = vocab.get_vocabs(args.language, args.stag_type)
 
     with tf.Graph().as_default():
         tf.set_random_seed(args.seed)
@@ -220,7 +228,7 @@ def train(args):
                 start = timer()
                 train_loss = model.run_training_epoch(
                     session, vocabs, fn_txt_train, fn_preds_train,
-                    fn_stags_train)
+                    fn_stags_train, args.language)
                 end = timer()
                 print('Done with epoch {}'.format(i))
                 print('Avg loss: {}, total time: {}'.format(
@@ -230,7 +238,7 @@ def train(args):
                 print('Validating...')
                 valid_loss = model.run_testing_epoch(
                     session, vocabs, fn_txt_valid, fn_preds_valid,
-                    fn_stags_valid, fn_sys)
+                    fn_stags_valid, fn_sys, args.language)
                 print('Validation loss: {}'.format(valid_loss))
 
                 print('-' * 78)

@@ -193,8 +193,9 @@ class CoNLL09_Sent_with_Pred(object):
             row[self.pred_num] = predictions[i]
 
 
-def get_pred_to_frame(fn_in='data/frames.txt'):
+def get_pred_to_frame(language):
     """Returns a dictionary mapping predicates to allowable frames"""
+    fn_in = 'data/{}/frames.txt'.format(language)
     pred_to_frame = {}
     with open(fn_in, 'r') as f:
         for line in f:
@@ -207,34 +208,13 @@ def get_pred_to_frame(fn_in='data/frames.txt'):
     return pred_to_frame
 
             
-def _conll09_generator(f, only_sent=False):
+def conll09_generator(fn_txt, fn_preds, fn_stags,
+                      language='eng', only_sent=False):
     """
     Generator for reading data in CoNLL format.
     Given a file object, yields CoNLL09_Sent_with_Pred objects.
     """
-    pred_to_frame = get_pred_to_frame()
-    lines = []
-    for line in f:
-        if line == '\n':
-            sent = CoNLL09_Sent(lines)
-            lines = []            
-            if only_sent:
-                yield sent
-            else:
-                for i in xrange(sent.num_preds):
-                    yield CoNLL09_Sent_with_Pred(sent, i, pred_to_frame)
-                if sent.num_preds == 0:
-                    yield CoNLL09_Sent_with_Pred(sent, -1, pred_to_frame)
-        else:
-            lines.append(line.strip().split('\t'))
-
-            
-def conll09_generator(fn_txt, fn_preds, fn_stags, only_sent=False):
-    """
-    Generator for reading data in CoNLL format.
-    Given a file object, yields CoNLL09_Sent_with_Pred objects.
-    """
-    pred_to_frame = get_pred_to_frame()
+    pred_to_frame = get_pred_to_frame(language)
     fs = [open(fn, 'r') for fn in [fn_txt, fn_preds, fn_stags]]
     lines = []
     for line, pred, stag in izip(*fs):

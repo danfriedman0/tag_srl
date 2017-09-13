@@ -86,14 +86,16 @@ def make_batch(sents, vocabs, train):
             labels, labels_mask_placeholder, stags, seq_lengths)
 
     
-def batch_producer(batch_size, vocabs, fn_txt, fn_preds, fn_stags, train=True):
+def batch_producer(batch_size, vocabs, fn_txt, fn_preds, fn_stags,
+                   language, train=True):
     """
     vocabs should be a dictionary of Vocab objects keyed "words", "pos", etc.
     See `make_batch` for details about what's in a batch.
     Returns the batch and also the corresponding list of sentence objects
       (useful for evaluation)
     """
-    all_sents = [s for s in conll09_generator(fn_txt, fn_preds, fn_stags)]
+    all_sents = [s for s in conll09_generator(
+        fn_txt, fn_preds, fn_stags, language)]
     # if train:
     #     all_sents = sorted(all_sents, key=lambda s: -len(s))
     sents = []
@@ -129,9 +131,10 @@ def make_disamb_batch(sents, vocabs, train):
     
 
 
-def disamb_batch_producer(batch_size, vocabs, fn_txt, fn_stags, train=True):
+def disamb_batch_producer(batch_size, vocabs, fn_txt, fn_stags,
+                          language, train=True):
     all_sents = [s for s in conll09_generator(
-        fn_txt, fn_stags, fn_stags, only_sent=True)]
+        fn_txt, fn_stags, fn_stags, language, only_sent=True)]
     if train:
         all_sents = sorted(all_sents, key=lambda s: -len(s))
     sents = []

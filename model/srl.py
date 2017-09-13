@@ -74,6 +74,7 @@ class SRL_Model(object):
 
         ## Pretrained word embeddings
         pretr_word_vectors = layers.get_word_embeddings(
+            args.language,
             vocabs['words'].idx_to_word)
         pretr_embed_size = pretr_word_vectors.shape[1]
         pretr_word_embeddings = layers.embed_inputs(
@@ -109,7 +110,9 @@ class SRL_Model(object):
                 name='stag_embedding')
             if args.use_stag_features:
                 stag_feats = stags.get_model1_embeddings(
-                    vocabs['stags'], args.stag_feature_embed_size)
+                    args.language,
+                    vocabs['stags'],
+                    args.stag_feature_embed_size)
                 stag_feat_embeddings = tf.nn.embedding_lookup(
                     stag_feats, stags_placeholder)
                 stag_embeddings = tf.concat([stag_embeddings,
@@ -351,7 +354,8 @@ class SRL_Model(object):
         return loss, probabilities
     
 
-    def run_training_epoch(self, session, vocabs, fn_txt, fn_preds, fn_stags):
+    def run_training_epoch(self, session, vocabs, fn_txt, fn_preds, fn_stags,
+                           language):
         batch_size = self.args.batch_size
         total_loss = 0
         num_batches = 0
@@ -359,7 +363,8 @@ class SRL_Model(object):
         if self.training_batches is None:
             print('Loading training batches...')
             self.training_batches = [batch for batch in batch_producer(
-                batch_size, vocabs, fn_txt, fn_preds, fn_stags, train=True)]
+                batch_size, vocabs, fn_txt, fn_preds, fn_stags,
+                language, train=True)]
             print('Loaded {} training batches'.format(
                 len(self.training_batches)))
         total_batches = len(self.training_batches)
@@ -381,7 +386,7 @@ class SRL_Model(object):
 
 
     def run_testing_epoch(self, session, vocabs, fn_txt, fn_preds,
-                          fn_stags, fn_sys):
+                          fn_stags, fn_sys, language):
         batch_size = self.args.batch_size
         total_loss = 0
         num_batches = 0
@@ -389,7 +394,8 @@ class SRL_Model(object):
         if self.testing_batches is None:
             print('Loading testing batches...')
             self.testing_batches = [batch for batch in batch_producer(
-                batch_size, vocabs, fn_txt, fn_preds, fn_stags, train=False)]
+                batch_size, vocabs, fn_txt, fn_preds, fn_stags,
+                language, train=False)]
             print('Loaded {} testing batches.'.format(
                 len(self.testing_batches)))
         total_batches = len(self.testing_batches)

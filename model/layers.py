@@ -3,11 +3,12 @@ import numpy as np
 import tensorflow as tf
 
 
-def get_word_embeddings(idx_to_word, fn='data/embeddings/sskip.100.vectors'):
+def get_word_embeddings(language, idx_to_word):
     """
     Load word embeddings from a file and store them in an embedding matrix
     indexed by the indices in idx_to_word.
     """
+    fn='data/{}/embeddings/sskip.100.vectors'.format(language)
     word_to_vec = {}
     with open(fn, 'r') as f:
         for line in f:

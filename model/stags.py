@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow as tf
 from model import layers
 
-def get_model1_embeddings(vocab, embed_size):
+def get_model1_embeddings(language, vocab, embed_size):
     """
     Given a stag vocabulary (from `vocab.py`), return
     `stag_embeddings`: maps each supertag to a feature-based embedding:
@@ -11,7 +11,7 @@ def get_model1_embeddings(vocab, embed_size):
     head_embedding is a trainable embedding of size `embed_size`.
     The other features are binary.
     """
-    fn = 'data/stags/model1.txt'
+    fn = 'data/{}/stags/model1.txt'.format(language)
     lines = open(fn, 'r').read().split('\n')
     stag_to_str = dict([line.split(' ') for line in lines if line != ''])
 

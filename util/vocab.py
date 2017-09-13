@@ -87,7 +87,7 @@ class Vocab(object):
 
 
     
-def get_vocabs(stag_type='ud'):
+def get_vocabs(language='eng', stag_type='ud'):
     """
     Returns a dictionary of Vocab objects for words, parts of speech,
       predicate lemmas, and semantic role labels
@@ -96,9 +96,9 @@ def get_vocabs(stag_type='ud'):
     vocabs = {}
     for vocab_type in vocab_types:
         if vocab_type == 'stags':
-            fn = 'data/vocab/stags.{}.txt'.format(stag_type)
+            fn = 'data/{}/vocab/stags.{}.txt'.format(language, stag_type)
         else:
-            fn = 'data/vocab/{}.txt'.format(vocab_type)
+            fn = 'data/{}/vocab/{}.txt'.format(language, vocab_type)
         if vocab_type == 'labels':
             zero = None
             unk = None
