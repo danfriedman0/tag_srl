@@ -15,7 +15,10 @@ from util import vocab
 
 
 parser = argparse.ArgumentParser(
-    description="Hyperparameters for training an SRL model")
+    description="Hyperparameters for training predicate disambiguation model")
+parser.add_argument("--language",
+                    help="Choice of language",
+                    choices=['eng'], default='eng')
 parser.add_argument("--word_embed_size",
                     help="Embedding size for words",
                     default=100, type=int)
@@ -112,26 +115,30 @@ class Debug_Args(object):
 
 def train(args):
     # Set the filepaths for training and validation
-    fn_txt_train = 'data/conll09/train.txt'
-    fn_preds_train = 'data/conll09/gold/train_predicates.txt'
+    fn_txt_train = 'data/{}/conll09/train.txt'.format(args.language)
+    fn_preds_train = 'data/{}/conll09/gold/train_predicates.txt'.format(
+        args.language)
     if args.use_stags:
-        fn_stags_train = 'data/conll09/{}/train_stags_{}.txt'.format(
+        fn_stags_train = 'data/{}/conll09/{}/train_stags_{}.txt'.format(
+            args.language,
             ('gold' if args.use_gold_stags else 'pred'),
             args.stag_type)
     else:
         fn_stags_train = fn_preds_train
         
-    fn_txt_valid = 'data/conll09/dev.txt'
-    fn_preds_valid = 'data/conll09/gold/dev_predicates.txt'
+    fn_txt_valid = 'data/{}/conll09/dev.txt'.format(args.language)
+    fn_preds_valid = 'data/{}/conll09/gold/dev_predicates.txt'.format(
+        args.language)
     if args.use_stags:
-        fn_stags_valid = 'data/conll09/pred/dev_stags_{}.txt'.format(
+        fn_stags_valid = 'data/{}/conll09/pred/dev_stags_{}.txt'.format(
+            args.language,
             args.stag_type)
     else:
         fn_stags_valid = fn_preds_valid
     
 
     # Come up with a model name based on the hyperparameters
-    model_suffix = '_'
+    model_suffix = args.language
     if args.restrict_labels:
         model_suffix += '_rl'
     if args.use_stags:
@@ -161,7 +168,7 @@ def train(args):
     with open(model_dir + 'args.pkl', 'w') as f:
         pickle.dump(args, f)
 
-    vocabs = vocab.get_vocabs(args.stag_type)
+    vocabs = vocab.get_vocabs(args.language, args.stag_type)
 
     with tf.Graph().as_default():
         tf.set_random_seed(args.seed)
@@ -183,7 +190,8 @@ def train(args):
                 
                 start = timer()
                 train_loss = model.run_training_epoch(
-                    session, vocabs, fn_txt_train, fn_stags_train)
+                    session, vocabs, fn_txt_train, fn_stags_train,
+                    args.language)
                 end = timer()
                 print('Done with epoch {}'.format(i))
                 print('Avg loss: {}, total time: {}'.format(
@@ -192,7 +200,8 @@ def train(args):
                 print('-' * 78)
                 print('Validating...')
                 valid_loss, labeled_f1, unlabeled_f1 = model.run_testing_epoch(
-                    session, vocabs, fn_txt_valid, fn_stags_valid)
+                    session, vocabs, fn_txt_valid, fn_stags_valid,
+                    args.language)
                 print('Validation loss: {}'.format(valid_loss))
 
                 print('-' * 78)

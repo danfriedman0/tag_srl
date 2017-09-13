@@ -41,6 +41,7 @@ class DisambModel(object):
 
         ## Pretrained word embeddings
         pretr_word_vectors = layers.get_word_embeddings(
+            args.language,
             vocabs['words'].idx_to_word)
         pretr_embed_size = pretr_word_vectors.shape[1]
         pretr_word_embeddings = layers.embed_inputs(
@@ -200,7 +201,7 @@ class DisambModel(object):
         return loss, probabilities
     
 
-    def run_training_epoch(self, session, vocabs, fn_txt, fn_stags):
+    def run_training_epoch(self, session, vocabs, fn_txt, fn_stags, language):
         batch_size = self.args.batch_size
         total_loss = 0
         num_batches = 0
@@ -208,7 +209,7 @@ class DisambModel(object):
         if self.training_batches is None:
             print('Loading training batches...')
             self.training_batches = [batch for batch in disamb_batch_producer(
-                batch_size, vocabs, fn_txt, fn_stags, train=True)]
+                batch_size, vocabs, fn_txt, fn_stags, language, train=True)]
             print('Loaded {} training batches'.format(
                 len(self.training_batches)))
         total_batches = len(self.training_batches)
@@ -229,7 +230,7 @@ class DisambModel(object):
         return total_loss / num_batches
 
 
-    def run_testing_epoch(self, session, vocabs, fn_txt, fn_stags):
+    def run_testing_epoch(self, session, vocabs, fn_txt, fn_stags, language):
         batch_size = self.args.batch_size
         total_loss = 0
         num_batches = 0
@@ -237,7 +238,7 @@ class DisambModel(object):
         if self.testing_batches is None:
             print('Loading testing batches...')
             self.testing_batches = [batch for batch in disamb_batch_producer(
-                batch_size, vocabs, fn_txt, fn_stags, train=False)]
+                batch_size, vocabs, fn_txt, fn_stags, language, train=False)]
             self.gold_predicates = []
             for sents, _ in self.testing_batches:
                 for sent in sents:

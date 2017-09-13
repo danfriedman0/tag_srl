@@ -27,10 +27,12 @@ def test(args):
     with open(os.path.join(model_dir, 'args.pkl'), 'r') as f:
         model_args = pickle.load(f)
         
-    fn_txt_valid = 'data/conll09/{}.txt'.format(args.data)
-    fn_preds_valid = 'data/conll09/pred/{}_predicates.txt'.format(args.data)
-    fn_stags_valid = 'data/conll09/pred/{}_stags_{}.txt'.format(
-        args.data, model_args.stag_type)
+    fn_txt_valid = 'data/{}/conll09/{}.txt'.format(
+        model_args.language, args.data)
+    fn_preds_valid = 'data/{}/conll09/pred/{}_predicates.txt'.format(
+        model_args.language, args.data)
+    fn_stags_valid = 'data/{}/conll09/pred/{}_stags_{}.txt'.format(
+        model_args.language, args.data, model_args.stag_type)
     fn_sys = 'output/predictions/{}.txt'.format(args.data)
     
     vocabs = vocab.get_vocabs(model_args.stag_type)
@@ -52,7 +54,7 @@ def test(args):
             print('Validating...')
             valid_loss = model.run_testing_epoch(
                 session, vocabs, fn_txt_valid, fn_preds_valid,
-                fn_stags_valid, fn_sys)
+                fn_stags_valid, fn_sys, model_args.language)
             print('Validation loss: {}'.format(valid_loss))
 
             print('-' * 78)
