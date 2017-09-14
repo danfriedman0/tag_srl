@@ -56,6 +56,7 @@ class CoNLL09_Sent(object):
             else:
                 self.lemmas.append('_')
         self.predicates = [line[13] for line in lines]
+        self.predicted_predicates = ['_' for line in lines]
 
         # Add a predicate info list for each predicate in the sentence
         self.pred_lists = []

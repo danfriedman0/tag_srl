@@ -230,7 +230,8 @@ class DisambModel(object):
         return total_loss / num_batches
 
 
-    def run_testing_epoch(self, session, vocabs, fn_txt, fn_stags, language):
+    def run_testing_epoch(self, session, vocabs, fn_txt, fn_stags,
+                          fn_sys, language):
         batch_size = self.args.batch_size
         total_loss = 0
         num_batches = 0
@@ -248,16 +249,30 @@ class DisambModel(object):
         total_batches = len(self.testing_batches)
         
         predicted_predicates = []
+        predicted_sents = []
+        f_out = open(fn_sys, 'w')
         for i, (sents, batch) in enumerate(self.testing_batches):
             batch_loss, probabilities = self.run_testing_batch(session, batch)
             total_loss += batch_loss            
             num_batches += 1
 
+            for sent, probs in zip(sents, probabilities):
+                pred_ids = np.argmax(probs, axis=1)
+                predictions = vocabs['predicates'].decode_sequence(pred_ids)
+                predictions = predictions[:len(sent.words)]
+                sent.predicted_predicates = predictions
+                # print(' '.join(sent.words))
+                # print(' '.join(predictions))
+                # print('---')
+                f_out.write('\n'.join(predictions) + '\n\n')
+                predicted_predicates += predictions
+
             # Add the predictions
-            prediction_ids = np.reshape(np.argmax(probabilities, axis=2), -1)
-            predictions = vocabs['predicates'].decode_sequence(prediction_ids)
-            predicted_predicates += predictions
-            
+            # prediction_ids = np.reshape(np.argmax(probabilities, axis=2), -1)
+            # predictions = vocabs['predicates'].decode_sequence(prediction_ids)
+            # predicted_predicates += predictions
+            # f_out.write('\n'.join(predictions) + '\n\n')
+            # f_out.write(':-/')
             if i % 10 == 0:
                 avg_loss = total_loss / num_batches
                 msg = '\r{}/{}    loss: {}'.format(
@@ -266,6 +281,7 @@ class DisambModel(object):
                 sys.stdout.flush()
         print('\n')
         self.test_batches = num_batches
+        f_out.close()
 
         # Get labeled and unlabeled F1 scores
         lf1, uf1 = self.get_f1(predicted_predicates, self.gold_predicates)
@@ -273,52 +289,43 @@ class DisambModel(object):
         return total_loss / num_batches, lf1, uf1
 
 
-    def get_f1(self, predicted_preds, gold_preds):
+    def get_f1(self, predicted, gold):
         """
-        predicted_preds and gold_preds should both be lists of strings
-          ('_', 'temperature.01', etc.)
+        predicted and gold should both be lists of strings,
+         '_' means no prediction
         returns labeled_f1, unlabeled_f1
         """
-        correct_labeled_predictions = 0
-        correct_unlabeled_predictions = 0
-        total_predictions = 0
-        total_predicates = 0
-        for ppred, gpred in zip(predicted_preds, gold_preds):
-            if ppred != '_':
-                total_predictions += 1
-                if gpred == ppred:
-                    correct_labeled_predictions += 1
-                elif gpred != '_':
-                    correct_unlabeled_predictions += 1
-            if gpred != '_':
-                total_predicates += 1
+        correct_labeled = 0
+        correct_unlabeled = 0
+        num_predicted = 0
+        num_gold = 0
 
+        for p, g in zip(predicted, gold):
+            if p != '_':
+                num_predicted += 1
+                if p == g:
+                    correct_labeled += 1
+                    correct_unlabeled += 1
+                elif g != '_':
+                    correct_unlabeled += 1
+                
+            if g != '_':
+                num_gold += 1
         
-        # precision = correct_predictions / total_predictions
-        if total_predictions > 0:
-            lp = correct_labeled_predictions / total_predictions
-            up = correct_unlabeled_predictions / total_predictions
-        else:
-            lp = up = 0
+        if num_predicted == 0 or num_gold == 0:
+            return 0, 0
+
+        labeled_precision = correct_labeled / num_predicted
+        labeled_recall = correct_labeled / num_gold
+        labeled_f1 = (2 * labeled_precision * labeled_recall /
+                      (labeled_precision + labeled_recall))
+
+        unlabeled_precision = correct_unlabeled / num_predicted
+        unlabeled_recall = correct_unlabeled / num_gold
+        unlabeled_f1 = (2 * unlabeled_precision * unlabeled_recall /
+                        (unlabeled_precision + unlabeled_recall))
+
+        return labeled_f1, unlabeled_f1
         
-        # recall = correct_predictions / total_predicates
-        if total_predicates > 0:
-            lr = correct_labeled_predictions / total_predicates
-            ur = correct_unlabeled_predictions / total_predicates
-        else:
-            lr = ur = 0
-
-        # f1 = (2 * precision * recall) / (precision + recall)
-        if lp + lr > 0:
-            lf1 = (2 * lp * lr) / (lp + lr)
-        else:
-            lf1 = 0
-        if up + ur > 0:
-            uf1 = (2 * up * ur) / (up + ur)
-        else:
-            uf1 = 0
-
-        return lf1, uf1
-                    
                 
     
