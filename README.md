@@ -1,6 +1,6 @@
-# tag_srl: Semantic Role Labeling with Tree-adjoining Grammars
+# tag_srl: Semantic Role Labeling with Supertags
 
-This is an SRL model based on the syntax-agnostic model of Marcheggiani et al (2017). See https://arxiv.org/abs/1701.02593 and https://github.com/diegma/neural-dep-srl. The model also supports using supertags from a tree-adjoining grammar in addition to part of speech tags.
+This is an SRL model based on the syntax-agnostic model of Marcheggiani et al (2017). See https://arxiv.org/abs/1701.02593 and https://github.com/diegma/neural-dep-srl. The model also supports using supertags extracted from dependency trees.
 
 ## Dependencies
 
@@ -9,47 +9,14 @@ This is an SRL model based on the syntax-agnostic model of Marcheggiani et al (2
 
 ## Required data
 
-You need your own copy of the CoNLL-2009 dataset to train the model. To use all the training options, you need the to add the following files:
-
-```
-data/
-  conll09/
-	  gold/
-		  dev.tag
-			dev.txt
-			ood.tag
-			ood.txt
-			test.tag
-			test.txt
-			train.tag
-			train.txt
-		pred/
-		  dev.tag
-			dev.txt
-			ood.tag
-			ood.txt
-			test.tag
-			test.txt
-			train.tag
-			train.txt			
-```
-
-`data/conll09/gold/*.txt` is the file from the CoNLL-2009 release, so for example `data/conll09/gold/dev.txt` is the same as `CoNLL2009-ST-English-development.txt` in the CoNLL release.
-
-`data/conll09/pred/*.txt` is the same as `data/conll09/gold/*.txt`, but with predicted predicate senses in the 14th column instead of gold standard predicates. We use [mate-tools](https://code.google.com/archive/p/mate-tools/wikis/ParserAndModels.wiki) to do predicate identification. You need to download the SRL pipeline (`srl-4.31.tgz`) and the English model file (linked from [here](https://code.google.com/archive/p/mate-tools/wikis/Models.wiki)). Then you should be able to run mate-tools on each text file data/conll09/gold/.
-
-mate-tools also does semantic role labeling, but the files in data/conll09/pred/ should have gold argument labels. So once you've run mate-tools, you can generate the appropriate files by running, for example,
-```
-paste <(cut -f -13 data/conll09/gold/dev.txt) <(cut -f 14 mate-tools_dev.txt) <(cut -f 15- data/conll09/gold/dev.txt) > data/conll09/pred/dev.txt
-```
-and similarly for the rest of hte files.
-
-`data/conll09/*/*.tag` is a file in CoNLL format with an additional column for supertags. You can do this in a couple of ways:
-
-* Download the UD_STAG extraction code from https://github.com/forrestdavis/UD_STAG. Run the code by moving to the SRL directory and running `srl_trees.py <file.txt>` for each file, and moving the output file (`file.tag`) to the appropriate directory.
-* If you don't want to run the supertag experiments, you should be able to just copy each .txt file to a .tag file, and I think the code will still run. Just make sure not to use the `--use_supertags` flag.
-
-You also need a copy of the pre-trained word embeddings used in the paper. Download the `sskip.100.vectors` file from https://github.com/diegma/neural-dep-srl and put it in `data/embeddings/sskip.100.vectors`.
+You need your own copy of the CoNLL-2009 dataset to train the model. Here are the steps to prepare the data for a given language (here, English):
+1. From the `tag_srl` directory, create the directories `data/eng/conll09/` ("eng" for English).
+2. Add the CoNLL text files to the directory and name them `train.txt`, `dev.txt`, `test.txt`, and `ood.txt`, if there is an out-of-domain dataset.
+3. Run `./scripts/preprocess.sh eng` to extract supertags from the data and generate vocab files.
+4. You also need a copy of the pre-trained word embeddings used in the paper. Download the `sskip.100.vectors` file from https://github.com/diegma/neural-dep-srl and put it in `data/eng/embeddings/sskip.100.vectors`. (Instructions for other languages forthcoming.)
+5. To replicate our results, you really need to use predicted predicates and supertags and put them in `data/eng/conll09/pred/` with names	`dev_predicates.txt`, `dev_stags_model1.txt`, etc.
+  a. We used [mate-tools](https://code.google.com/archive/p/mate-tools/wikis/ParserAndModels.wiki) to get predicted predicates. You need to download the SRL pipeline (`srl-4.31.tgz`) and the English model file (linked from [here](https://code.google.com/archive/p/mate-tools/wikis/Models.wiki)).
+	b. Contact me to get predicted supertags.
 
 
 ## Training
