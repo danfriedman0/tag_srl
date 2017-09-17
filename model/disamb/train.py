@@ -174,7 +174,7 @@ def train(args):
         tf.set_random_seed(args.seed)
         np.random.seed(args.seed)
 
-        print("Building model...")        
+        print("Building model...")
         model = DisambModel(vocabs, args)
         saver = tf.train.Saver(max_to_keep=1)
         
@@ -195,7 +195,7 @@ def train(args):
                 end = timer()
                 print('Done with epoch {}'.format(i))
                 print('Avg loss: {}, total time: {}'.format(
-                    train_loss, end-start))
+                    train_loss, end - start))
 
                 print('-' * 78)
                 print('Validating...')

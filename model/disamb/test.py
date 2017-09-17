@@ -16,6 +16,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument("model_dir", help="Directory containing the saved model")
 parser.add_argument("data", help="train, test, dev, or ood",
                     choices=['train', 'test', 'dev', 'ood'])
+parser.add_argument("fill_all",
+                    help="Guess all predicates (not just when fill_pred=Y)",
+                    action="store_true")
 
 
 def test(args):
@@ -50,7 +53,7 @@ def test(args):
             print('Validating...')
             valid_loss, labeled_f1, unlabeled_f1 = model.run_testing_epoch(
                 session, vocabs, fn_txt_valid, fn_stags_valid, fn_sys,
-                model_args.language)            
+                model_args.language, args.fill_all)
             print('Validation loss: {}'.format(valid_loss))
             print('Labeled F1:    {0:.2f}'.format(labeled_f1))
             print('Unlabeled F1:  {0:.2f}'.format(unlabeled_f1))

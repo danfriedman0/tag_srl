@@ -43,13 +43,9 @@ class DisambModel(object):
         pretr_word_vectors = layers.get_word_embeddings(
             args.language,
             vocabs['words'].idx_to_word)
-        pretr_embed_size = pretr_word_vectors.shape[1]
-        pretr_word_embeddings = layers.embed_inputs(
-            raw_inputs=words_placeholder,
-            vocab_size=vocabs['words'].size,
-            embed_size=pretr_embed_size,
-            name='pretr_word_embedding',
-            embeddings=pretr_word_vectors)
+        with tf.variable_scope('pretr_word_embedding'):
+            pretr_word_embeddings = tf.nn.embedding_lookup(
+                pretr_word_vectors, words_placeholder)
 
         ## POS embeddings
         pos_embeddings = layers.embed_inputs(
@@ -231,7 +227,7 @@ class DisambModel(object):
 
 
     def run_testing_epoch(self, session, vocabs, fn_txt, fn_stags,
-                          fn_sys, language):
+                          fn_sys, language, fill_all=True):
         batch_size = self.args.batch_size
         total_loss = 0
         num_batches = 0
@@ -259,20 +255,11 @@ class DisambModel(object):
             for sent, probs in zip(sents, probabilities):
                 pred_ids = np.argmax(probs, axis=1)
                 predictions = vocabs['predicates'].decode_sequence(pred_ids)
-                predictions = predictions[:len(sent.words)]
-                sent.predicted_predicates = predictions
-                # print(' '.join(sent.words))
-                # print(' '.join(predictions))
-                # print('---')
+                predictions = predictions[:len(sent.words)]                
+                sent.add_predicted_predicates(predictions, fill_all=fill_all)
                 f_out.write('\n'.join(predictions) + '\n\n')
                 predicted_predicates += predictions
 
-            # Add the predictions
-            # prediction_ids = np.reshape(np.argmax(probabilities, axis=2), -1)
-            # predictions = vocabs['predicates'].decode_sequence(prediction_ids)
-            # predicted_predicates += predictions
-            # f_out.write('\n'.join(predictions) + '\n\n')
-            # f_out.write(':-/')
             if i % 10 == 0:
                 avg_loss = total_loss / num_batches
                 msg = '\r{}/{}    loss: {}'.format(

@@ -63,7 +63,7 @@ def batch_matmul(x, W):
     d1 = shape[2]
     d2 = tf.shape(W)[1]
     _x = tf.reshape(x, [-1, d1])
-    _xW = tf.matmul(_x, W, a_is_sparse=True)
+    _xW = tf.matmul(_x, W)
     xW = tf.reshape(_xW, [batch_size, d0, d2])
     return xW
 

@@ -56,6 +56,7 @@ class CoNLL09_Sent(object):
             else:
                 self.lemmas.append('_')
         self.predicates = [line[13] for line in lines]
+        self.fill_preds = [line[12] for line in lines]
         self.predicted_predicates = ['_' for line in lines]
 
         # Add a predicate info list for each predicate in the sentence
@@ -86,7 +87,7 @@ class CoNLL09_Sent(object):
         #   self.predictions_list[i][j]
         # is the predicted semantic relation of word i to predicate j.
         self.predictions_list = [['_' for _ in xrange(self.num_preds)]
-                                 for _ in xrange(len(self.words))]
+                                 for _ in xrange(len(self.words))]        
         
 
     def normalize(self, token):
@@ -126,6 +127,13 @@ class CoNLL09_Sent(object):
 
     def __len__(self):
         return len(self.words)
+    
+
+    def add_predicted_predicates(self, predictions, fill_all=True):
+        # Add predicted predicates to self
+        for i in xrange(len(self.fill_preds)):
+            if fill_all or self.fill_preds[i] == 'Y':
+                self.predicted_predicates[i] = predictions[i]
 
 
 class CoNLL09_Sent_with_Pred(object):
