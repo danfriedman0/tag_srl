@@ -1,6 +1,6 @@
 # tag_srl: Semantic Role Labeling with Supertags
 
-This is an SRL model based on the syntax-agnostic model of Marcheggiani et al (2017). See https://arxiv.org/abs/1701.02593 and https://github.com/diegma/neural-dep-srl. The model also supports using supertags extracted from dependency trees.
+This is a model for semantic dependency parsing based on the syntax-agnostic model of Marcheggiani et al (2017). See https://arxiv.org/abs/1701.02593 and https://github.com/diegma/neural-dep-srl. This model achieves state-of-the-art results by a) using a better regularized LSTM with highway layers, as in He et al (20017), and b) incorporating supertags extracted from dependency trees.
 
 ## Dependencies
 
@@ -37,3 +37,17 @@ Once you've trained a model, the trained model will be saved in a directory in `
 python model/test.py output/models/model_name test_split
 ```
 `test_split` should be dev, test, ood (out-of-domain), or train.
+
+## Organization
+
+The code for this project is organized as follows:
+
+1. `model/train.py` parses command line arguments, resolves filepaths, and then calls `utils/vocab.py` to get vocabulary objects for words, parts of speech, etc. A `Vocab` object has methods for mapping words to integer ids and back.
+2. Then `model/train.py` calls `model/srl.py` to initialize the `SRL_Model` object. `SRL_Model` builds a neural network using generic neural network functions from `model/layers.py` and `model/lstm.py`.
+3. `model/srl.py` uses functions from `util/conll_io.py` and `util/data_loader.py` to load CoNLL sentences into the model.
+	 a. `util/conll_io.py` defines methods for reading and writing CoNLL-09 format sentences and storing them in a convenient format, along with predicted predicates and supertags.
+	 b. `util/data_loader.py` converts lists of CoNLL sentences to batches of integer ids that can be fed to the neural network.
+4. The `SRL_Model` also has methods for running a training or testing epoch. In a testing epoch, the model writes its predictions to a file (usually `output/predictions/{model_name}.txt`), in CoNLL format, so it can be evaluated with the CoNLL evaluation script.
+5. After each epoch, `model/train.py` calls the CoNLL-provided perl evaluation script (from a python wrapper in `eval/eval.py`) and decides whether or not to stop early.
+6. `model/test.py` just rebuilds a trained model and runs a testing epoch with the specified data.
+7. The predicate disambiguation directory, `model/disamb/`, is organized in the same way, with one file, `model/disamb/disamb.py`, to build the network and run training and testing epochs, and one file each for training and testing the model.
