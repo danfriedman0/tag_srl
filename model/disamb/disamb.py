@@ -9,6 +9,7 @@ import tensorflow as tf
 
 from model import layers, lstm
 from util.data_loader import disamb_batch_producer
+from util.conll_io import get_lemma_to_preds
 
 
 class Redirect(object):
@@ -26,6 +27,7 @@ class DisambModel(object):
         # Input placeholders
         words_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
         pos_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
+        lemmas_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
         labels_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
         stags_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
         use_dropout_placeholder = tf.placeholder(tf.float32, shape=())
@@ -108,9 +110,14 @@ class DisambModel(object):
                 initializer=tf.orthogonal_initializer(),
                 dtype=tf.float32)
             logits = layers.batch_matmul(outputs, W)
+            if args.restrict_labels:
+                label_masks = self.get_label_masks(vocabs, args.language)
+                mask = tf.nn.embedding_lookup(label_masks,
+                                              lemmas_placeholder)
+                logits = tf.multiply(logits, mask)
             predictions = tf.nn.softmax(logits)
 
-
+        
         # Loss op and optimizer
         cross_ent = tf.nn.sparse_softmax_cross_entropy_with_logits(
             labels=labels_placeholder,
@@ -134,6 +141,7 @@ class DisambModel(object):
         # Add everything to the model
         self.words_placeholder = words_placeholder
         self.pos_placeholder = pos_placeholder
+        self.lemmas_placeholder = lemmas_placeholder
         self.labels_placeholder = labels_placeholder
         self.stags_placeholder = stags_placeholder
         self.use_dropout_placeholder = use_dropout_placeholder
@@ -146,10 +154,11 @@ class DisambModel(object):
 
 
     def batch_to_feed(self, batch):
-        words, pos, labels, stags = batch
+        words, pos, lemmas, labels, stags = batch
         feed_dict = {
             self.words_placeholder: words,
             self.pos_placeholder: pos,
+            self.lemmas_placeholder: lemmas,
             self.labels_placeholder: labels,
             self.stags_placeholder: stags,
         }
@@ -227,7 +236,7 @@ class DisambModel(object):
 
 
     def run_testing_epoch(self, session, vocabs, fn_txt, fn_stags,
-                          fn_sys, language, fill_all=True):
+                          fn_sys, language, fill_all=False):
         batch_size = self.args.batch_size
         total_loss = 0
         num_batches = 0
@@ -243,6 +252,10 @@ class DisambModel(object):
             print('Loaded {} testing batches.'.format(
                 len(self.testing_batches)))
         total_batches = len(self.testing_batches)
+
+        # lemma_to_preds = get_lemma_to_preds(
+        #     'data/{}/conll09/train.txt'.format(language))
+        lemma_to_preds = None
         
         predicted_predicates = []
         predicted_sents = []
@@ -253,10 +266,13 @@ class DisambModel(object):
             num_batches += 1
 
             for sent, probs in zip(sents, probabilities):
-                pred_ids = np.argmax(probs, axis=1)
-                predictions = vocabs['predicates'].decode_sequence(pred_ids)
-                predictions = predictions[:len(sent.words)]                
-                sent.add_predicted_predicates(predictions, fill_all=fill_all)
+                if not fill_all:
+                    probs[:, 0] = 0.0
+                # pred_ids = np.argmax(probs, axis=1)
+                # predictions = vocabs['predicates'].decode_sequence(pred_ids)
+                predictions = sent.add_predicted_predicates(
+                    probs, vocabs['predicates'],
+                    fill_all=fill_all, lemma_to_preds=lemma_to_preds)
                 f_out.write('\n'.join(predictions) + '\n\n')
                 predicted_predicates += predictions
 
@@ -315,4 +331,23 @@ class DisambModel(object):
         return labeled_f1, unlabeled_f1
         
                 
-    
+    def get_label_masks(self, vocabs, language):
+        """
+        Returns a matrix mapping lemmas to allowable predicates.
+        masks[i] is a vector of size `num_predicates` that contains
+          1's in all entries of predicates that are possible for lemma i and
+          0's everywhere else.
+        """
+        fn = 'data/{}/conll09/train.txt'.format(language)
+        lemma_to_preds = get_lemma_to_preds(fn)
+        masks = np.zeros((vocabs['lemmas'].size, vocabs['predicates'].size),
+                         dtype=np.float32)
+        for i, lemma in vocabs['lemmas'].idx_to_word.iteritems():
+            if lemma in lemma_to_preds:
+                preds = list(lemma_to_preds[lemma])
+                idxs = vocabs['predicates'].encode_sequence(preds)
+                for j in idxs:
+                    masks[i][j] = 1.0
+            else:
+                masks[i][0] = 1.0 # '_'
+        return masks

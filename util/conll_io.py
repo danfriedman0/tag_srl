@@ -55,6 +55,7 @@ class CoNLL09_Sent(object):
                 self.lemmas.append(line[-2].split('.')[0])
             else:
                 self.lemmas.append('_')
+        self.plemmas = [line[3] for line in lines]
         self.predicates = [line[13] for line in lines]
         self.fill_preds = [line[12] for line in lines]
         self.predicted_predicates = ['_' for line in lines]
@@ -129,11 +130,23 @@ class CoNLL09_Sent(object):
         return len(self.words)
     
 
-    def add_predicted_predicates(self, predictions, fill_all=True):
+    def add_predicted_predicates(self, probs, vocab,
+                                 fill_all=True, lemma_to_preds=None):
         # Add predicted predicates to self
         for i in xrange(len(self.fill_preds)):
             if fill_all or self.fill_preds[i] == 'Y':
-                self.predicted_predicates[i] = predictions[i]
+                if (lemma_to_preds is not None and
+                    self.plemmas[i] in lemma_to_preds):
+                    possibilities = list(lemma_to_preds[self.plemmas[i]])
+                    idxs = vocab.encode_sequence(possibilities)
+                    probabilities = [probs[i][j] for j in idxs]
+                    prediction = possibilities[np.argmax(probabilities)]
+                    self.predicted_predicates[i] = prediction
+                else:
+                    pred_id = np.argmax(probs[i])
+                    prediction = vocab.idx_to_word[pred_id]
+                    self.predicted_predicates[i] = prediction
+        return self.predicted_predicates
 
 
 class CoNLL09_Sent_with_Pred(object):
@@ -216,6 +229,28 @@ def get_pred_to_frame(language):
                 pred_to_frame[parts[0]] = parts[1:]
     return pred_to_frame
 
+
+def get_lemma_to_preds(fn='data/eng/conll09/train.txt'):
+    """
+    Given a file (default: English training set), returns a dictionary
+    mapping each lemma to the set of predicates that are associated with
+    that lemma in the dataset.
+    `d` is a dictionary mapping strings to sets.
+    """
+    d = {}
+    with open(fn, 'r') as f:
+        for line in f:
+            if line == '\n':
+                continue
+            parts = line.split('\t')
+            if parts[12] == 'Y':
+                lemma = parts[3]
+                predicate = parts[13]
+                if lemma not in d:
+                    d[lemma] = set()
+                d[lemma].add(predicate)
+    return d
+    
             
 def conll09_generator(fn_txt, fn_preds, fn_stags,
                       language='eng', only_sent=False):

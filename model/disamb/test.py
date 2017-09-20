@@ -18,7 +18,7 @@ parser.add_argument("data", help="train, test, dev, or ood",
                     choices=['train', 'test', 'dev', 'ood'])
 parser.add_argument("--fill_all",
                     help="Guess all predicates (not just when fill_pred=Y)",
-                    action="store_true")
+                    action="store_true", default=False)
 
 
 def test(args):

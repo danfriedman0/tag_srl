@@ -49,9 +49,6 @@ parser.add_argument("--learning_rate",
 parser.add_argument("--max_epochs",
                     help="Maximum number of epochs to train for",
                     default=50, type=int)
-parser.add_argument("--restrict_labels",
-                    help="Only allow labels from a predicate's frame",
-                    action="store_true", default=False)
 parser.add_argument("--use_stags",
                     help="Use supertags",
                     action="store_true", default=False)
@@ -83,6 +80,9 @@ parser.add_argument("--use_highway_lstm",
 parser.add_argument("--optimizer",
                     help="Choice of optimizer",
                     choices=['adam', 'adadelta'], default='adam')
+parser.add_argument("--restrict_labels",
+                    help="Restrict predicates by lemma",
+                    action="store_true")
 parser.add_argument("--debug",
                     help="Use a smaller configuration for debugging",
                     action="store_true", default=False)

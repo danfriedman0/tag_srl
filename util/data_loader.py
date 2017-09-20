@@ -5,7 +5,7 @@ from __future__ import division
 import numpy as np
 
 from util.conll_io import CoNLL09_Sent, CoNLL09_Sent_with_Pred
-from util.conll_io import conll09_generator
+from util.conll_io import conll09_generator, get_lemma_to_preds
 
 
 
@@ -72,7 +72,7 @@ def make_batch(sents, vocabs, train):
     freqs = make_batch_freqs(sents, seq_length, vocabs['words'])
     pos = make_batch_field_sequence(sents, 'pos',
                                     seq_length, vocabs['pos'])
-    lemmas = make_batch_field_sequence(sents, 'lemmas',
+    lemmas = make_batch_field_sequence(sents, 'plemmas',
                                        seq_length, vocabs['lemmas'])
     preds = make_batch_field_single(sents, 'pred', vocab=vocabs['lemmas'])
     preds_idx = make_batch_field_single(sents, 'pred_idx')
@@ -123,11 +123,13 @@ def make_disamb_batch(sents, vocabs, train):
                                       use_dropout=False)
     pos = make_batch_field_sequence(sents, 'pos',
                                     seq_length, vocabs['pos'])
+    lemmas = make_batch_field_sequence(sents, 'plemmas',
+                                       seq_length, vocabs['lemmas'])
     labels = make_batch_field_sequence(sents, 'predicates',
                                        seq_length, vocabs['predicates'])
     stags = make_batch_field_sequence(sents, 'stags',
                                       seq_length, vocabs['stags'])
-    return words, pos, labels, stags
+    return words, pos, lemmas, labels, stags
     
 
 
