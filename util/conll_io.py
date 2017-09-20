@@ -1,6 +1,7 @@
 # conll_io.py
 # Classes for reading and writing data in CoNLL-09 format
 import numpy as np
+import cPickle as pickle
 from itertools import izip
 
 class CoNLL09_Pred_List(object):
@@ -247,8 +248,15 @@ def get_lemma_to_preds(fn='data/eng/conll09/train.txt'):
                 lemma = parts[3]
                 predicate = parts[13]
                 if lemma not in d:
-                    d[lemma] = set()
-                d[lemma].add(predicate)
+                    d[lemma] = []
+                if predicate not in d[lemma]:
+                    d[lemma].append(predicate)
+    return d
+
+
+def _get_lemma_to_preds(fn='data/eng/frames/lemma_to_preds.pkl'):
+    with open(fn, 'r') as f:
+        d = pickle.load(f)
     return d
     
             
@@ -298,5 +306,41 @@ def test_frames():
     print('{} sentences with errors, {} total errors'.format(sent_count,count))
 
 
+    
+def get_baseline_predictions():
+    """
+    This is a baseline for predicted predicates:
+      - Get a dictionary from training data mapping lemmas to predicates
+      - Pick randomly from the allowable predicates
+    F1 is ~67 (50% of lemma instances have only one allowable predicate)
+    """
+    total = 0
+    matches = 0
+    unk = 0
+    
+    lemma_to_preds = get_lemma_to_preds()
+    fn = 'data/eng/conll09/dev.txt'
+    with open(fn, 'r') as f:
+        for line in f:
+            if line == '\n':
+                print('')
+                continue
+            parts = line.split('\t')
+            lemma = parts[3]
+            fill_pred = parts[12] == 'Y'
+            if fill_pred and lemma in lemma_to_preds:
+                total += 1
+                preds = lemma_to_preds[lemma]
+                if len(preds) == 1:
+                    matches += 1
+                print(np.random.choice(preds))
+            elif fill_pred:
+                total += 1
+                unk += 1
+                print('UNKNOWN')
+            else:
+                print('_')
+    
+
 if __name__ == '__main__':
-    test_frames()
+    get_baseline_predictions()

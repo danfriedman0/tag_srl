@@ -344,10 +344,10 @@ class DisambModel(object):
                          dtype=np.float32)
         for i, lemma in vocabs['lemmas'].idx_to_word.iteritems():
             if lemma in lemma_to_preds:
-                preds = list(lemma_to_preds[lemma])
+                preds = lemma_to_preds[lemma]
                 idxs = vocabs['predicates'].encode_sequence(preds)
                 for j in idxs:
                     masks[i][j] = 1.0
             else:
-                masks[i][0] = 1.0 # '_'
+                masks[i, :] = 0.0 # Allow everything
         return masks
