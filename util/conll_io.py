@@ -59,6 +59,7 @@ class CoNLL09_Sent(object):
         self.plemmas = [line[3] for line in lines]
         self.predicates = [line[13] for line in lines]
         self.fill_preds = [line[12] for line in lines]
+        self.fill_preds_b = [fp == 'Y' for fp in self.fill_preds]
         self.predicted_predicates = ['_' for line in lines]
 
         # Add a predicate info list for each predicate in the sentence

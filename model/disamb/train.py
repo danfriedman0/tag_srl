@@ -52,6 +52,15 @@ parser.add_argument("--max_epochs",
 parser.add_argument("--use_stags",
                     help="Use supertags",
                     action="store_true", default=False)
+parser.add_argument("--use_lemmas",
+                    help="Use lemmas",
+                    action="store_true", default=False)
+parser.add_argument("--lemma_embed_size",
+                    help="Lemma embed size",
+                    default=50, type=int)
+parser.add_argument("--use_fill_preds",
+                    help="Use fill preds",
+                    action="store_true", default=False)
 parser.add_argument("--stag_type",
                     help="Choice of supertags: ud, model1, model2, or None",
                     choices=['model1', 'model2'],
@@ -82,7 +91,7 @@ parser.add_argument("--optimizer",
                     choices=['adam', 'adadelta'], default='adam')
 parser.add_argument("--restrict_labels",
                     help="Restrict predicates by lemma",
-                    action="store_true")
+                    action="store_true", default=True)
 parser.add_argument("--debug",
                     help="Use a smaller configuration for debugging",
                     action="store_true", default=False)
@@ -156,6 +165,10 @@ def train(args):
         model_suffix += '_hw'
     if args.optimizer != 'adam':
         model_suffix += '_' + args.optimizer
+    if args.use_lemmas:
+        model_suffix += '_lem{}'.format(args.lemma_embed_size)
+    if args.use_fill_preds:
+        model_suffix += '_fp'
     if args.seed != 89:
         model_suffix += '_s{}'.format(args.seed)
     fn_sys = 'output/predictions/dev{}.txt'.format(model_suffix)

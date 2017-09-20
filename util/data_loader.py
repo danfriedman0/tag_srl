@@ -114,7 +114,14 @@ def batch_producer(batch_size, vocabs, fn_txt, fn_preds, fn_stags,
         sents += [sents[0] for _ in xrange(batch_size - len(sents))]
         yield sents, make_batch(sents, vocabs, train)
 
-
+def make_fill_preds_batch(sents, seq_length):
+    batch = np.zeros((len(sents), seq_length), dtype=np.int32)
+    for i, sent in enumerate(sents):
+        for j, fp in enumerate(sent.fill_preds):
+            if fp == 'Y':
+                batch[i, j] = 1
+    return batch
+        
 
 def make_disamb_batch(sents, vocabs, train):
     seq_length = max(len(sent) for sent in sents)
@@ -129,7 +136,8 @@ def make_disamb_batch(sents, vocabs, train):
                                        seq_length, vocabs['predicates'])
     stags = make_batch_field_sequence(sents, 'stags',
                                       seq_length, vocabs['stags'])
-    return words, pos, lemmas, labels, stags
+    fill_preds = make_fill_preds_batch(sents, seq_length)
+    return words, pos, lemmas, labels, stags, fill_preds
     
 
 

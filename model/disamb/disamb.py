@@ -30,6 +30,8 @@ class DisambModel(object):
         lemmas_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
         labels_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
         stags_placeholder = tf.placeholder(tf.int32, shape=(batch_size, None))
+        fill_preds_placeholder = tf.placeholder(tf.int32,
+                                                shape=(batch_size, None))
         use_dropout_placeholder = tf.placeholder(tf.float32, shape=())
 
         # Word representation
@@ -58,6 +60,19 @@ class DisambModel(object):
 
         word_features = [word_embeddings, pretr_word_embeddings,
                          pos_embeddings]
+
+        if args.use_lemmas:
+            lemma_embeddings = layers.embed_inputs(
+                raw_inputs=lemmas_placeholder,
+                vocab_size=vocabs['lemmas'].size,
+                embed_size=args.lemma_embed_size,
+                name='lemma_embedding')
+            word_features.append(lemma_embeddings)
+
+        fill_preds = tf.expand_dims(
+            tf.cast(fill_preds_placeholder, tf.float32), -1)
+        if args.use_fill_preds:
+            word_features.append(fill_preds)
 
         ## Supertag embeddings
         if args.use_stags:
@@ -114,6 +129,7 @@ class DisambModel(object):
                 label_masks = self.get_label_masks(vocabs, args.language)
                 mask = tf.nn.embedding_lookup(label_masks,
                                               lemmas_placeholder)
+                mask = tf.multiply(mask, fill_preds)
                 logits = tf.multiply(logits, mask)
             predictions = tf.nn.softmax(logits)
 
@@ -144,6 +160,7 @@ class DisambModel(object):
         self.lemmas_placeholder = lemmas_placeholder
         self.labels_placeholder = labels_placeholder
         self.stags_placeholder = stags_placeholder
+        self.fill_preds_placeholder = fill_preds_placeholder
         self.use_dropout_placeholder = use_dropout_placeholder
         self.predictions = predictions
         self.loss = loss
@@ -154,13 +171,14 @@ class DisambModel(object):
 
 
     def batch_to_feed(self, batch):
-        words, pos, lemmas, labels, stags = batch
+        words, pos, lemmas, labels, stags, fill_preds = batch
         feed_dict = {
             self.words_placeholder: words,
             self.pos_placeholder: pos,
             self.lemmas_placeholder: lemmas,
             self.labels_placeholder: labels,
             self.stags_placeholder: stags,
+            self.fill_preds_placeholder: fill_preds
         }
         return feed_dict
         
@@ -349,5 +367,5 @@ class DisambModel(object):
                 for j in idxs:
                     masks[i][j] = 1.0
             else:
-                masks[i, :] = 0.0 # Allow everything
+                masks[i, :] = 1.0 # Allow everything
         return masks
