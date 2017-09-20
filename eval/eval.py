@@ -56,7 +56,7 @@ def get_f1(predicted, gold):
     unlabeled_f1 = (2 * unlabeled_precision * unlabeled_recall /
                     (unlabeled_precision + unlabeled_recall))
 
-    return labeled_f1, unlabeled_f1
+    return 100 * labeled_f1, 100 * unlabeled_f1
 
 
 def get_f1_from_files(fn_pred, fn_gold):
@@ -66,13 +66,13 @@ def get_f1_from_files(fn_pred, fn_gold):
     with open(fn_gold, 'r') as f_gold:
         lines = f_gold.read().split('\n')
         gold = [line for line in lines if line != '']
-    labeled_f1, unlabeled_f1 = get_f1(predicted, gold)
-    print('Labeled F1:    {0:.2f}'.format(labeled_f1))
-    print('Unlabeled F1:  {0:.2f}'.format(unlabeled_f1))
+    return get_f1(predicted, gold)
     
     
 
 if __name__ == '__main__':
     fn_pred = sys.argv[1]
     fn_gold = sys.argv[2]
-    get_f1_from_files(fn_pred, fn_gold)
+    labeled_f1, unlabeled_f1 = get_f1_from_files(fn_pred, fn_gold)
+    print('Labeled F1:    {0:.2f}'.format(labeled_f1))
+    print('Unlabeled F1:  {0:.2f}'.format(unlabeled_f1))

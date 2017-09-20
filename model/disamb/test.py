@@ -19,6 +19,9 @@ parser.add_argument("data", help="train, test, dev, or ood",
 parser.add_argument("--fill_all",
                     help="Guess all predicates (not just when fill_pred=Y)",
                     action="store_true", default=False)
+parser.add_argument("--fn_out",
+                    help="Name of the file to write predictions to",
+                    default=None)
 
 
 def test(args):
@@ -33,6 +36,8 @@ def test(args):
     fn_stags_valid = 'data/{}/conll09/pred/{}_stags_{}.txt'.format(
         model_args.language, args.data, model_args.stag_type)
     fn_sys = 'output/predictions/{}.txt'.format(args.data)
+    if args.fn_out is not None:
+        fn_sys = args.fn_out
     
     vocabs = vocab.get_vocabs(model_args.language, model_args.stag_type)
 
@@ -52,8 +57,8 @@ def test(args):
             print('-' * 78)
             print('Validating...')
             valid_loss, labeled_f1, unlabeled_f1 = model.run_testing_epoch(
-                session, vocabs, fn_txt_valid, fn_stags_valid, fn_sys,
-                model_args.language, args.fill_all)
+                session, vocabs, fn_txt_valid, fn_stags_valid,
+                fn_sys, fn_preds_gold, model_args.language, args.fill_all)
             print('Validation loss: {}'.format(valid_loss))
             print('Labeled F1:    {0:.2f}'.format(labeled_f1))
             print('Unlabeled F1:  {0:.2f}'.format(unlabeled_f1))

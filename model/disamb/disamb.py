@@ -10,6 +10,7 @@ import tensorflow as tf
 from model import layers, lstm
 from util.data_loader import disamb_batch_producer
 from util.conll_io import get_lemma_to_preds
+from eval.eval import get_f1_from_files
 
 
 class Redirect(object):
@@ -254,7 +255,7 @@ class DisambModel(object):
 
 
     def run_testing_epoch(self, session, vocabs, fn_txt, fn_stags,
-                          fn_sys, language, fill_all=False):
+                          fn_sys, fn_gold, language, fill_all=False):
         batch_size = self.args.batch_size
         total_loss = 0
         num_batches = 0
@@ -276,7 +277,7 @@ class DisambModel(object):
         lemma_to_preds = None
         
         predicted_predicates = []
-        predicted_sents = []
+        predicted_sents = set()
         f_out = open(fn_sys, 'w')
         for i, (sents, batch) in enumerate(self.testing_batches):
             batch_loss, probabilities = self.run_testing_batch(session, batch)
@@ -288,11 +289,12 @@ class DisambModel(object):
                     probs[:, 0] = 0.0
                 # pred_ids = np.argmax(probs, axis=1)
                 # predictions = vocabs['predicates'].decode_sequence(pred_ids)
-                predictions = sent.add_predicted_predicates(
-                    probs, vocabs['predicates'],
-                    fill_all=fill_all, lemma_to_preds=lemma_to_preds)
-                f_out.write('\n'.join(predictions) + '\n\n')
-                predicted_predicates += predictions
+                if sent not in predicted_sents:
+                    predicted_sents.add(sent)
+                    predictions = sent.add_predicted_predicates(
+                        probs, vocabs['predicates'],
+                        fill_all=fill_all, lemma_to_preds=lemma_to_preds)
+                    f_out.write('\n'.join(predictions) + '\n\n')
 
             if i % 10 == 0:
                 avg_loss = total_loss / num_batches
@@ -305,7 +307,8 @@ class DisambModel(object):
         f_out.close()
 
         # Get labeled and unlabeled F1 scores
-        lf1, uf1 = self.get_f1(predicted_predicates, self.gold_predicates)
+        lf1, uf1 = get_f1_from_files(fn_sys, fn_gold)
+        # lf1, uf1 = self.get_f1(predicted_predicates, self.gold_predicates)
     
         return total_loss / num_batches, lf1, uf1
 
