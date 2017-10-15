@@ -92,7 +92,8 @@ def get_vocabs(language='eng', stag_type='ud'):
     Returns a dictionary of Vocab objects for words, parts of speech,
       predicate lemmas, and semantic role labels
     """
-    vocab_types = ['words', 'pos', 'lemmas', 'labels', 'stags', 'predicates']
+    vocab_types = ['words', 'pos', 'lemmas', 'plemmas',
+                   'labels', 'stags', 'predicates']
     vocabs = {}
     for vocab_type in vocab_types:
         if vocab_type == 'stags':

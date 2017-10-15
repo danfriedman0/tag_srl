@@ -264,10 +264,6 @@ class DisambModel(object):
             print('Loading testing batches...')
             self.testing_batches = [batch for batch in disamb_batch_producer(
                 batch_size, vocabs, fn_txt, fn_stags, language, train=False)]
-            self.gold_predicates = []
-            for sents, _ in self.testing_batches:
-                for sent in sents:
-                    self.gold_predicates += sent.predicates
             print('Loaded {} testing batches.'.format(
                 len(self.testing_batches)))
         total_batches = len(self.testing_batches)
@@ -278,6 +274,7 @@ class DisambModel(object):
         
         predicted_predicates = []
         predicted_sents = set()
+        fn_sys = 'test.txt'
         f_out = open(fn_sys, 'w')
         for i, (sents, batch) in enumerate(self.testing_batches):
             batch_loss, probabilities = self.run_testing_batch(session, batch)
@@ -287,8 +284,6 @@ class DisambModel(object):
             for sent, probs in zip(sents, probabilities):
                 if not fill_all:
                     probs[:, 0] = 0.0
-                # pred_ids = np.argmax(probs, axis=1)
-                # predictions = vocabs['predicates'].decode_sequence(pred_ids)
                 if sent not in predicted_sents:
                     predicted_sents.add(sent)
                     predictions = sent.add_predicted_predicates(
@@ -361,9 +356,9 @@ class DisambModel(object):
         """
         fn = 'data/{}/conll09/train.txt'.format(language)
         lemma_to_preds = get_lemma_to_preds(fn)
-        masks = np.zeros((vocabs['lemmas'].size, vocabs['predicates'].size),
+        masks = np.zeros((vocabs['plemmas'].size, vocabs['predicates'].size),
                          dtype=np.float32)
-        for i, lemma in vocabs['lemmas'].idx_to_word.iteritems():
+        for i, lemma in vocabs['plemmas'].idx_to_word.iteritems():
             if lemma in lemma_to_preds:
                 preds = lemma_to_preds[lemma]
                 idxs = vocabs['predicates'].encode_sequence(preds)

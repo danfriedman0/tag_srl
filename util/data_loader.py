@@ -72,7 +72,7 @@ def make_batch(sents, vocabs, train):
     freqs = make_batch_freqs(sents, seq_length, vocabs['words'])
     pos = make_batch_field_sequence(sents, 'pos',
                                     seq_length, vocabs['pos'])
-    lemmas = make_batch_field_sequence(sents, 'plemmas',
+    lemmas = make_batch_field_sequence(sents, 'lemmas',
                                        seq_length, vocabs['lemmas'])
     preds = make_batch_field_single(sents, 'pred', vocab=vocabs['lemmas'])
     preds_idx = make_batch_field_single(sents, 'pred_idx')
@@ -131,7 +131,7 @@ def make_disamb_batch(sents, vocabs, train):
     pos = make_batch_field_sequence(sents, 'pos',
                                     seq_length, vocabs['pos'])
     lemmas = make_batch_field_sequence(sents, 'plemmas',
-                                       seq_length, vocabs['lemmas'])
+                                       seq_length, vocabs['plemmas'])
     labels = make_batch_field_sequence(sents, 'predicates',
                                        seq_length, vocabs['predicates'])
     stags = make_batch_field_sequence(sents, 'stags',

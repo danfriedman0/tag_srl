@@ -61,6 +61,10 @@ cat data/$LANG/conll09/gold/train_predicates.txt |
   sed 's/\([a-z]*\)\..*/\1/' | # Ignore the number part of the predicate
   to_vocab > data/$LANG/vocab/lemmas.txt
 
+# Regular predicted lemmas
+cut -f 4 data/$LANG/conll09/train.txt |
+  to_vocab > data/$LANG/vocab/plemmas.txt
+
 # Semantic role labels
 cut -f 15- data/eng/conll09/train.txt |  # Get the label columns
   awk '{gsub(/\t/, "\n"); print }' | # Flatten to one column

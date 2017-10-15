@@ -26,6 +26,8 @@ def test(args):
     model_dir = args.model_dir    
     with open(os.path.join(model_dir, 'args.pkl'), 'r') as f:
         model_args = pickle.load(f)
+    if not hasattr(model_args, 'language'):
+        model_args.language = 'eng'
         
     fn_txt_valid = 'data/{}/conll09/{}.txt'.format(
         model_args.language, args.data)
